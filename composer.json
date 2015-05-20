@@ -1,0 +1,41 @@
+{
+  "minimum-stability": "dev",
+  "name": "robvanaarle/ultimo-waf",
+  "description": "Basic rule-based Web Application Firewall in PHP",
+  "type": "library",
+  "keywords": [
+    "Web Application Firewall",
+    "WAF",
+    "SQL injection",
+    "SQLi",
+    "Cross-site scripting",
+    "XSS",
+    "File inclusion",
+    "Remote file inclusion",
+    "RFI",
+    "Local file inclusion",
+    "LFI"
+  ],
+  "license": "BSD-3-Clause",
+  "authors":
+  [
+    {
+      "name": "Rob van Aarle"
+    }
+  ],
+  "require": {
+    "symfony/yaml": "2.6.*-dev"
+  },
+  "require": {
+    "php": ">=5.3.3"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "3.7.*"
+  },
+  "autoload": {
+    "psr-4": {
+      "ultimo\\": "src/ultimo/"
+    }
+  }
+}
+
