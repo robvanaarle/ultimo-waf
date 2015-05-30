@@ -1,7 +1,7 @@
 {
   "minimum-stability": "dev",
   "name": "robvanaarle/ultimo-waf",
-  "description": "Basic rule-based Web Application Firewall in PHP",
+  "description": "Lexer based Web Application Firewall in PHP",
   "type": "library",
   "keywords": [
     "Web Application Firewall",
@@ -23,9 +23,6 @@
       "name": "Rob van Aarle"
     }
   ],
-  "require": {
-    "symfony/yaml": "2.6.*-dev"
-  },
   "require": {
     "php": ">=5.3.3"
   },

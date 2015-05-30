@@ -1,10 +1,18 @@
 # Ultimo-WAF
-Basic rule-based Web Application Firewall in PHP.
+Lexer based Web Application Firewall in PHP.
+# IN DEVELOPMENT
 
-A basic rule-based Web Application Firewall in PHP based on [Naxsi](https://github.com/nbs-system/naxsi). It's a simple to install and to use WAF, intended for low-traffic websites. It won't reach the level of security of applications like ModSecurity or Naxsi, but it will add an extra layer of security.
+Unlike other WAFs, Ultimo-WAF runs directly after the input parameters are collected, e.g. after routing. Each parameter is split into tokens using lexers for each type of attack. Then it tries to find patterns of token types to decide whether to advice to block the request.
+
+## Goals
+* Usable when more advanced WAFs, like ModSecurity or other commercial software, cannot be used. (too expensive, not enough privileges on the server, ...)
+* Easy to setup
+* Acceptable performance
+* Withstand automated attacks from tools like sqlmap
+* Hard challenge for casual hackers
 
 ## Requirements
 * PHP 5.3
 
 ## Usage
-  TBD
+TBD
