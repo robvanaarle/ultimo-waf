@@ -90,7 +90,7 @@ class MySqlTokenMatcher {
     }
     
     // ignore all whitespaces
-    if (in_array($token['type'], array('whitespace', 'executed_comment_start', 'executed_comment_end', 'unknown_comment_end'))) {
+    if (in_array($token['type'], array('whitespace', 'executed_comment_start', 'executed_comment_end', 'unexpected_comment_end', 'comment'))) {
       //$match[] = $token;
       return $this->matchRecursive($pattern, $tokens, $match, $ccStack);
     }

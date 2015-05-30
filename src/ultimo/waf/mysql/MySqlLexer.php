@@ -90,7 +90,16 @@ class MySqlLexer {
     // test cases: 1 12 12.3 12.34 .0
     //             1.1.1 11a 11.11a
     
-    if ($this->match("([0-9]*\.[0-9]+|[0-9]+)($|[^a-z0-9_\.])", "number", 1)) {
+    
+    if ($this->match(
+            // 1 or more digits, decimal seperator followed 1 or more digits, 1
+            // or more digits followed by decimal seperator followed by 1 or
+            // more digits
+            "([0-9]*\.[0-9]+|[0-9]+)" . 
+            // number is followed by end of string or any not alphanumberic
+            // character, _ or .
+            "($|[^a-z0-9_\.])"
+        , "number", 1)) {
       return true;
     }
   
@@ -214,7 +223,7 @@ class MySqlLexer {
         $lastComment = $this->commentStack[count($this->commentStack)-1];
         $type = $lastComment['type'] == 'conditional_comment_start' ? 'conditional_comment_end' : 'executed_comment_end';
       } else {
-        $type = 'unknown_comment_end';
+        $type = 'unexpected_comment_end';
       }
         
       if ($this->match('\*\/', $type)) {
@@ -288,7 +297,7 @@ class MySqlLexer {
       'unknown_in_cc' => 0, // only needed if unknown is used for scoring
       'hexadecimal' => 0,
       'comment' => 0,
-      'unknown_comment_end' => 0,
+      'unexpected_comment_end' => 0,
       'executed_comment_start' => 0,
       'conditional_comment_start' => 0,
       'executed_comment_end' => 0,
