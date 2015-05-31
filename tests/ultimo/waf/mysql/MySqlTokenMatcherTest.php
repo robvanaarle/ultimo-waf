@@ -2,6 +2,7 @@
 
 namespace ultimo\waf\mysql;
 
+// TODO: rename test functions, replace testMatcher...
 class MySqlTokenMatcherTest extends \PHPUnit_Framework_TestCase {
   protected $matcher;
   protected $lexer;
@@ -11,151 +12,110 @@ class MySqlTokenMatcherTest extends \PHPUnit_Framework_TestCase {
     $this->lexer = new MySqlLexer();
   }
   
-  public function testPatternDepth1IsMatched() {
-    $this->assertEquals(array(
-        array('type' => 'number', 'value' => '42')
-      ),
-      $this->matcher->match(array(
-        'number' => null,
-        'string' => array(
-          'number' => null
-        )
-      ), $this->lexer->run('42'))
-    );
+  public function testMatcherAcceptsAlternation() {
+    $this->assertTrue($this->matcher->match(
+      '/(%string|%number)/',
+      $this->lexer->run('42')
+    ));
   }
   
-  public function testPatternDepth2IsMatched() {
-    $this->assertEquals(array(
-        array('type' => 'number', 'value' => '42'),
-        array('type' => 'identifier', 'value' => 'xx')
-      ),
-      $this->matcher->match(array(
-        'number' => array(
-          'number' => null,
-          'identifier' => null
-        )
-      ), $this->lexer->run('42 xx'))
-    );
+  public function testMatcherAcceptsAlternationWithPaths() {
+    $this->assertTrue($this->matcher->match(
+      '/(%string %number|%number %string)/',
+      $this->lexer->run('42"string"')
+    ));
   }
   
-  public function testCommentIsIgnored() {
-    $this->assertEquals(array(
-        array('type' => 'number', 'value' => '42'),
-        array('type' => 'identifier', 'value' => 'xx')
-      ),
-      $this->matcher->match(array(
-        'number' => array(
-          'identifier' => null
-        )
-      ), $this->lexer->run('42 /* foobar */ xx'))
-    );
+  public function testMatcherAcceptsPlusQuantifier() {
+    $this->assertTrue($this->matcher->match(
+      '/%string+/',
+      $this->lexer->run('"string""string"')
+    ));
   }
   
-  public function testExecutedCommentIsEvaluated() {
-    $this->assertEquals(array(
-        array('type' => 'number', 'value' => '42'),
-        array('type' => 'identifier', 'value' => 'foobar')
-      ),
-      $this->matcher->match(array(
-        'number' => array(
-          'identifier' => null
-        )
-      ), $this->lexer->run('42 /*! foobar */ xx'))
-    );
+  public function testMatcherAcceptsStarQuantifier() {
+    $this->assertTrue($this->matcher->match(
+      '/%string* %whitespace %number/',
+      $this->lexer->run(' 42')
+    ));
   }
   
-  public function testUnexpectedCommentEndIsIgnored() {
-    $this->assertEquals(array(
-        array('type' => 'number', 'value' => '42'),
-        array('type' => 'identifier', 'value' => 'xx')
-      ),
-      $this->matcher->match(array(
-        'number' => array(
-          'identifier' => null
-        )
-      ), $this->lexer->run('42 */ xx'))
-    );
+  public function testMatcherAcceptsQuantifier() {
+    $this->assertTrue($this->matcher->match(
+      '/%string{2}/',
+      $this->lexer->run('"string 1""string 2"')
+    ));
   }
   
-  public function testConditionalCommentIsBothEvaluatedAndIgnored() {
-    $value = '42 /*!000 "xx" */ yy';
-    
-    
-    $this->assertEquals(array(
-        array('type' => 'number', 'value' => '42'),
-        array('type' => 'string', 'value' => '"xx"')
-      ),
-          
-      $this->matcher->match(array(
-        'number' => array(
-          'string' => null
-        )
-      ), $this->lexer->run($value))
-    );
-    
-    $this->assertEquals(array(
-        array('type' => 'number', 'value' => '42'),
-        array('type' => 'identifier', 'value' => 'yy')
-      ),
-          
-      $this->matcher->match(array(
-        'number' => array(
-          'identifier' => null
-        )
-      ), $this->lexer->run($value))
-    );
+  public function testMatcherAcceptsCaretAnchor() {
+    $this->assertTrue($this->matcher->match(
+      '/^%number/',
+      $this->lexer->run('42')
+    ));
   }
   
-  public function testNestedConditionalCommentIsBothEvaluatedAndIgnored() {
-    $value = '42 /*!000 "xx" /*!001 zz  */ 43 */ yy';
-    
-    
-    $this->assertEquals(array(
-        array('type' => 'number', 'value' => '42'),
-        array('type' => 'string', 'value' => '"xx"'),
-        array('type' => 'identifier', 'value' => 'zz')
-      ),
-          
-      $this->matcher->match(array(
-        'number' => array(
-          'string' => array(
-            'identifier' => null
-          )
-        )
-      ), $this->lexer->run($value))
-    );
-    
-    $this->assertEquals(array(
-        array('type' => 'number', 'value' => '42'),
-        array('type' => 'string', 'value' => '"xx"'),
-        array('type' => 'number', 'value' => '43')
-      ),
-          
-      $this->matcher->match(array(
-        'number' => array(
-          'string' => array(
-            'number' => null
-          )
-        )
-      ), $this->lexer->run($value))
-    );
+  public function testMatcherAcceptsDollarAnchor() {
+    $this->assertTrue($this->matcher->match(
+      '/%number$/',
+      $this->lexer->run('42')
+    ));
   }
   
-  public function testPatternDepth1HasNoMatch() {
-    $this->assertEquals(null,
-      $this->matcher->match(array(
-        'string' => null
-      ), $this->lexer->run('42'))
-    );
+  public function testMatcherMatchesWithinExecutedComment() {
+    $this->assertTrue($this->matcher->match(
+      '/%identifier %whitespace* %number/',
+      $this->lexer->run('a /*! 1 */ c')
+    ));
   }
   
-  public function testPatternDepth2HasNoMatch() {
-    $this->assertEquals(null,
-      $this->matcher->match(array(
-        'number' => array(
-          'string' => null
-        )
-      ), $this->lexer->run('42 xx'))
-    );
+  public function testMatcherIgnoresPoundComment() {
+    $this->assertTrue($this->matcher->match(
+      '/%number %whitespace* %number/',
+      $this->lexer->run("42 # foo\n42")
+    ));
+  }
+  
+  public function testMatcherIgnoresMinMinComment() {
+    $this->assertTrue($this->matcher->match(
+      '/%number %whitespace* %number/',
+      $this->lexer->run("42 -- foo\n42")
+    ));
+  }
+  
+  public function testMatcherIgnoresComment() {
+    $this->assertTrue($this->matcher->match(
+      '/%number %whitespace* %number/',
+      $this->lexer->run("42 /* foo */ 42")
+    ));
+  }
+  
+  public function testMatcherMatchesWithinConditionalComment() {
+    $this->assertTrue($this->matcher->match(
+      '/%identifier %whitespace* %number/',
+      $this->lexer->run('a /*!0 1 */ c')
+    ));
+  }
+  
+  public function testMatcherIgnoresConditionalComment() {
+    $this->assertTrue($this->matcher->match(
+      '/%identifier %whitespace* %identifier/',
+      $this->lexer->run('a /*!0 1 */ c')
+    ));
+  }
+  
+  // MySql seems to reject nested conditional comments with unequal version integers,
+  // so this test is not (yet?) necessary.
+  //public function testMatcherMatchesConditionalCommentAndIgnoresNestedConditionalComment() {
+  //  $this->assertTrue($this->matcher->match(
+  //    '/%identifier %whitespace* %number %whitespace* %identifier/',
+  //    $this->lexer->run('a /*!1 2 /*!0 "s" */ c')
+  //  ));
+  //}
+  
+   public function testMatcherUnmatchesTokenTypeNotInPattern() {
+    $this->assertFalse($this->matcher->match(
+      '/%string/',
+      $this->lexer->run('42')
+    ));
   }
 }

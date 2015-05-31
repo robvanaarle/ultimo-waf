@@ -19,8 +19,7 @@ class MySqlLexer {
   protected $choppedValue; // rename to remainingValue?
   
   // conditional comment depth
-  protected $ccDepth = 0;
-  protected $commentStack = array();
+  //protected $commentStack = array();
  
   // http://savage.net.au/SQL/sql-2003-2.bnf.html#delimited%20identifier
   // [x] single quoted string
@@ -41,10 +40,10 @@ class MySqlLexer {
   //  , := extra weight if between identifiers, numbers, strings, ...?
   //  ;
   //  * := operator?
-  // [ ] binary b'1001'
-  // [ ] octal or others?
-  // [ ] user-defined variables @
-  // [ ] @@ system variables
+  // [x] binary b'1001'
+  // [x] octal or others?
+  // [x] user-defined variables @
+  // [x] @@ system variables
  
   // configurable grammar
   // add scores/weights to each type of token
@@ -122,7 +121,6 @@ class MySqlLexer {
   }
  
   protected function consumeQuotedIdentifier() {
-    // TODO: rename, as this could also be a table name  
     return $this->match('`[^`]+`', 'quoted_identifier');
   }
  
@@ -156,6 +154,7 @@ class MySqlLexer {
    
       // TODO: add more keywords?
       // TODO: consume names of popular functions
+      // TODO: remove keywords, as it's not a token: they consist of operators, functions and other types
      
       // http://dev.mysql.com/doc/mysqld-version-reference/en/mysqld-version-reference-reservedwords-5-7.html
       // only dangerous keywords are checked against, to reduce false positives
@@ -221,32 +220,23 @@ class MySqlLexer {
  
   protected function consumeComment() {
     //https://dev.mysql.com/doc/refman/5.7/en/comments.html
- 
-    /**
-     * IMPORTANT TODO:
-     * SELECT /-*!0 /*-! 'foobar' *-/, 'foo' (without -'s) is valid,  but with another *-/ it's not?!
-     *   nested comments only have to end with one *-/?
-     */
     
     if ($this->next == '*') {
         
-      if (count($this->commentStack) > 0) {
-        $lastComment = $this->commentStack[count($this->commentStack)-1];
-        $type = $lastComment['type'] == 'conditional_comment_start' ? 'conditional_comment_end' : 'executed_comment_end';
-      } else {
-        $type = 'unexpected_comment_end';
-      }
+      //if (count($this->commentStack) > 0) {
+      //  $lastComment = $this->commentStack[count($this->commentStack)-1];
+      //  $type = $lastComment['type'] == 'conditional_comment_start' ? 'conditional_comment_end' : 'executed_comment_end';
+      //} else {
+      //  $type = 'unexpected_comment_end';
+      //}
         
+      $type = 'comment_end';
       if ($this->match('\*\/', $type)) {
           
-        if (count($this->commentStack) > 0) {
-            $comment = array_pop($this->commentStack);
-            if ($comment['type'] == 'conditional_comment_start') {
-                $this->ccDepth--;
-            }
-            
-            //$this->undo(-2); // tokens surrounding the end of the comment could form an other token
-        }
+        //if (count($this->commentStack) > 0) {
+        //    $comment = array_pop($this->commentStack);
+        //    //$this->undo(-2); // tokens surrounding the end of the comment could form an other token
+        //}
         return true;
       }
     } else if ($this->next == '#' || $this->next == '-') {
@@ -254,23 +244,16 @@ class MySqlLexer {
         return true;
       }
     } 
-
-    // TODO:
-    // sometimes consume within /*!\d+ ... */
-    //   ask for mysql version
-    //   only consume if it contains valid sql, otherwise ignore?
-    //   add everything as very suspicious
  
     // /*!(\d+)? ... */
     if (preg_match("/^\/\*\!([\d]+)?/", $this->choppedValue, $matches)) {
       if (isset($matches[1])) {
         $this->consume("/*!" . $matches[1], 'conditional_comment_start');
-        $this->ccDepth++;
       } else {
         $this->consume("/*!", 'executed_comment_start');
       }
       //$this->undo(-2); // tokens surrounding the start of the comment could form an other token
-      $this->commentStack[] = $this->lastToken;
+      //$this->commentStack[] = $this->lastToken;
       return true;
     }
   
@@ -291,12 +274,11 @@ class MySqlLexer {
   }
   
   protected function consumeBitField() {
-    return $this->match('b\'[01]+\'', 'bit_field');
+    return $this->match('b\'[01]*\'', 'bit_field');
   }
  
   protected function consumeUnknown() {
-    $type = ($this->ccDepth > 0) ? 'unknown_in_cc' : 'unknown';
-    $this->match("(.*?)(?:$|,|\s|\x0b)", $type, 1);
+    $this->match("(.*?)(?:$|,|\s|\x0b)", 'unknown', 1);
   }
  
   protected function consumeVariable() {
@@ -326,14 +308,14 @@ class MySqlLexer {
     $this->tokens = array();
     $this->counts = array(
       'unknown' => 0,
-      'unknown_in_cc' => 0, // only needed if unknown is used for scoring
       'hexadecimal' => 0,
       'comment' => 0,
-      'unexpected_comment_end' => 0,
+      //'unexpected_comment_end' => 0,
       'executed_comment_start' => 0,
       'conditional_comment_start' => 0,
-      'executed_comment_end' => 0,
-      'conditional_comment_end' => 0,
+      //'executed_comment_end' => 0,
+      //'conditional_comment_end' => 0,
+      'comment_end' => 0,
       'whitespace' => 0,
       'identifier' => 0,
       'keyword' => 0,

@@ -480,11 +480,12 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     );
   }
   
+  
   function testExecutedCommentContentIsParsed() {
     $this->assertEquals(array(
         array('type' => 'executed_comment_start', 'value' => "/*!"),
         array('type' => 'identifier', 'value' => "foobar"),
-        array('type' => 'executed_comment_end', 'value' => "*/"),
+        array('type' => 'comment_end', 'value' => "*/"),
       ),
       $this->lexer->run("/*!foobar*/")
     );
@@ -494,7 +495,7 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     $this->assertEquals(array(
         array('type' => 'conditional_comment_start', 'value' => "/*!0"),
         array('type' => 'identifier', 'value' => "foobar"),
-        array('type' => 'conditional_comment_end', 'value' => "*/"),
+        array('type' => 'comment_end', 'value' => "*/"),
       ),
       $this->lexer->run("/*!0foobar*/")
     );
@@ -505,10 +506,9 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
         array('type' => 'conditional_comment_start', 'value' => "/*!0"),
         array('type' => 'executed_comment_start', 'value' => "/*!"),
         array('type' => 'identifier', 'value' => "foobar"),
-        array('type' => 'executed_comment_end', 'value' => "*/"),
-        array('type' => 'conditional_comment_end', 'value' => "*/"),
+        array('type' => 'comment_end', 'value' => "*/")
       ),
-      $this->lexer->run("/*!0/*!foobar*/*/")
+      $this->lexer->run("/*!0/*!foobar*/")
     );
   }
   
