@@ -405,7 +405,12 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
       array('test'),
       array('test123'),
       array('test_123'),
-      array('_test')
+      array('te$t'),
+      array('0test'),
+      array('_test'),
+      array('$'),
+      array('0$'),
+      array('_')
     );
   }
   
@@ -416,30 +421,6 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     $this->assertContains(
       array('type' => 'identifier', 'value' => $identifier),
       $this->lexer->run($identifier)
-    );
-  }
-  
-  /**
-   * @dataProvider providerNumericCharacters
-   */
-  function testIdentifierCanStartWithNumericCharacter($numChar) {
-    $this->assertContains(
-      array('type' => 'identifier', 'value' => $numChar.'test'),
-      $this->lexer->run($numChar.'test')
-    );
-  }
-  
-  function testIdentifierCanContainDollarSign() {
-    $this->assertContains(
-      array('type' => 'identifier', 'value' => 'te$t'),
-      $this->lexer->run('te$t')
-    );
-  }
-  
-  function testIdentifierCanContainDollarUnderscore() {
-    $this->assertContains(
-      array('type' => 'identifier', 'value' => 'te_st'),
-      $this->lexer->run('te_st')
     );
   }
   
