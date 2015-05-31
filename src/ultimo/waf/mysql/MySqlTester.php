@@ -76,6 +76,8 @@ class MySqlTester {
       )
     );
     
+    // hexadecimal => alphanum
+    
     $matcher = new MySqlTokenMatcher();
     $match = $matcher->match($pattern, $lexer->tokens);
     if ($match !== null) {

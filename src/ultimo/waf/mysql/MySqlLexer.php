@@ -16,7 +16,7 @@ class MySqlLexer {
   protected $offset = 0;
   protected $value;
   protected $next;
-  protected $choppedValue;
+  protected $choppedValue; // rename to remainingValue?
   
   // conditional comment depth
   protected $ccDepth = 0;
@@ -41,6 +41,10 @@ class MySqlLexer {
   //  , := extra weight if between identifiers, numbers, strings, ...?
   //  ;
   //  * := operator?
+  // [ ] binary b'1001'
+  // [ ] octal or others?
+  // [ ] user-defined variables @
+  // [ ] @@ system variables
  
   // configurable grammar
   // add scores/weights to each type of token
@@ -95,10 +99,10 @@ class MySqlLexer {
             // 1 or more digits, decimal seperator followed 1 or more digits, 1
             // or more digits followed by decimal seperator followed by 1 or
             // more digits
-            "([0-9]*\.[0-9]+|[0-9]+)" . 
+            "(([0-9]*\.[0-9]+|[0-9]+)(e[\-]?[\d]+)?)"
             // number is followed by end of string or any not alphanumberic
-            // character, _ or .
-            "($|[^a-z0-9_\.])"
+            // character, _, . or $ (then it is an identifier)
+            . "($|[^a-z0-9_\.\$])"
         , "number", 1)) {
       return true;
     }
@@ -135,6 +139,7 @@ class MySqlLexer {
     // array('&&', '=', ':=', '&', '~', '|', '^', '/', '<=>', '>=', '>', '<<', '<=', '<', '-', '%', '...', '!=', '<>', '!', '||', '+', '>>', '*')
 
     // also contains the logical operators
+    // TODO: remove 'followed by non-operator character', as this is about syntax, not tokens
     return $this->match(
               "(&&|\=|\:\=|&|~|\||\^|\/|\<\=\>|\>\=|\>|\<\<|\<\=|\<|\-|%|\.\.\.|\!\=|\<\>|\!|\|\||\+|\>\>|\*)" // the valid operators
             . "($|\/\*|\-\-($|[\s\x0b])|[^&|\=|\:|~|\||\^|\/|\<|\>|\-|%|\.|\!|\||\+|\*])" // must be followed by end, comment or non operator character
@@ -146,7 +151,7 @@ class MySqlLexer {
   }
  
   protected function consumeIdentifier() {      
-    if (preg_match("/^[a-z_][a-z0-9_]*/", $this->choppedValue, $matches)) {
+    if (preg_match("/^[a-z0-9_\$]*[a-z_\$]+[a-z0-9_\$]*/", $this->choppedValue, $matches)) {
       $word = $matches[0];
    
       // TODO: add more keywords?
@@ -279,10 +284,14 @@ class MySqlLexer {
  
   protected function consumeHexadecimal() {
     if ($this->next == 'x') {
-      return $this->match('(x\'([0-9a-f][0-9a-f])+\')($|[^0-9a-z_])', 'hexadecimal', 1);
+      return $this->match('x\'([0-9a-f][0-9a-f])*\'', 'hexadecimal');
     } else {
-      return $this->match('(0x([0-9a-f][0-9a-f])+)($|[^0-9a-z_])', 'hexadecimal', 1);
+      return $this->match('0x([0-9a-f])+', 'hexadecimal');
     }
+  }
+  
+  protected function consumeBitField() {
+    return $this->match('b\'[01]+\'', 'bit_field');
   }
  
   protected function consumeUnknown() {
@@ -290,6 +299,23 @@ class MySqlLexer {
     $this->match("(.*?)(?:$|,|\s|\x0b)", $type, 1);
   }
  
+  protected function consumeVariable() {
+    if ($this->match("@@[0-9a-z_\.\$]+", "system_variable")) {
+      return true;
+    }
+    
+    $delimiter = substr($this->choppedValue, 1, 1);
+    if (in_array($delimiter, array('"', "'"))) {
+      $escapedDelimiter = preg_quote($delimiter);
+      // http://stackoverflow.com/questions/5695240/php-regex-to-ignore-escaped-quotes-within-quotes
+      return $this->match('@' . $escapedDelimiter . '[^'.$escapedDelimiter.'\\\\]*(?:\\\\.[^'.$escapedDelimiter.'\\\\]*)*' . $escapedDelimiter, 'user_defined_variable');
+    } elseif ($delimiter == '`') {
+      return $this->match('@' . "`[^`]+`", 'user_defined_variable');
+    } else {
+      return $this->match('@[a-z0-9_\$\.]*', 'user_defined_variable');
+    }
+  }
+  
   protected function write($str) {
     if ($this->debug) {
       echo $str;
@@ -322,7 +348,10 @@ class MySqlLexer {
       'left_parenthesis' => 0,
       'right_parenthesis' => 0,
       'logical_operator' => 0,
-      'modifier' => 0
+      'modifier' => 0,
+      'bit_field' => 0,
+      'system_variable' => 0,
+      'user_defined_variable' => 0
     );
     $this->offset = 0;
     $this->value = strtolower($value);
@@ -347,7 +376,10 @@ class MySqlLexer {
       if (in_array($this->next, array('0', 'x'))) {
         if ($this->consumeHexadecimal()) {
           continue;
-
+        }
+      } elseif (in_array($this->next, array('b'))) {
+        if ($this->consumeBitField()) {
+          continue;
         }
       }
      
@@ -379,6 +411,10 @@ class MySqlLexer {
       } elseif ($this->next == ';') {
         $this->consume(';', 'semicolon');
         continue;
+      } elseif ($this->next == '@') {
+        if ($this->consumeVariable()) {
+          continue;
+        }
       }
    
       if (in_array($this->next, array('#', '-', '/', '*'))) {

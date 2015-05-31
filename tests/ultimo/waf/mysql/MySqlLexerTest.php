@@ -86,34 +86,31 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     );
   }
   
-  /**
-   * @dataProvider providerAlphaCharacters
-   */
-  public function testNumberCannotBeFollowedByAlphaCharacter($alphaChar) {
-    $this->assertNotContains(
-      array('type' => 'number', 'value' => '42'),
-      $this->lexer->run('42' . $alphaChar)
-    );
-  }
-  
-  public function testIntegerNumberCannotBeFollowedByAPeriod() {
-    $this->assertNotContains(
-      array('type' => 'number', 'value' => '42'),
-      $this->lexer->run('42.')
-    );
-  }
-  
-  public function testFloatNumberCannotBeFollowedByAPeriod() {
-    $this->assertNotContains(
-      array('type' => 'number', 'value' => '42.1337.'),
-      $this->lexer->run('42.1337.')
-    );
-  }
-  
-  public function testNumberCanBeFollowedByAComma() {
+  public function testIntegerNumberCanHaveAnExponent() {
     $this->assertContains(
-      array('type' => 'number', 'value' => '42'),
-      $this->lexer->run('42,')
+      array('type' => 'number', 'value' => '42e1'),
+      $this->lexer->run('42e1')
+    );
+  }
+  
+  public function testFloatNumberCanHaveAnExponent() {
+    $this->assertContains(
+      array('type' => 'number', 'value' => '42.1337e1'),
+      $this->lexer->run('42.1337e1')
+    );
+  }
+  
+   public function testIntegerNumberCanHaveANegativeExponent() {
+    $this->assertContains(
+      array('type' => 'number', 'value' => '42e-1'),
+      $this->lexer->run('42e-1')
+    );
+  }
+  
+  public function testFloatNumberCanHaveANegativeExponent() {
+    $this->assertContains(
+      array('type' => 'number', 'value' => '42.1337e-1'),
+      $this->lexer->run('42.1337e-1')
     );
   }
   
@@ -262,6 +259,7 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     );
   }
   
+  // Remove this one, as this checks syntax?
   public function testOperatorCannotBeFollowedByAnOperator() {
     $this->assertNotContains(
       array('type' => 'operator', 'value' => "+*"),
@@ -424,10 +422,24 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
   /**
    * @dataProvider providerNumericCharacters
    */
-  function testIdentifierCannotStartWithNumericCharacter($numChar) {
-    $this->assertNotContains(
+  function testIdentifierCanStartWithNumericCharacter($numChar) {
+    $this->assertContains(
       array('type' => 'identifier', 'value' => $numChar.'test'),
       $this->lexer->run($numChar.'test')
+    );
+  }
+  
+  function testIdentifierCanContainDollarSign() {
+    $this->assertContains(
+      array('type' => 'identifier', 'value' => 'te$t'),
+      $this->lexer->run('te$t')
+    );
+  }
+  
+  function testIdentifierCanContainDollarUnderscore() {
+    $this->assertContains(
+      array('type' => 'identifier', 'value' => 'te_st'),
+      $this->lexer->run('te_st')
     );
   }
   
@@ -530,7 +542,14 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     );
   }
   
-  function testXQuoteHexadecimalMustContainEvenNumberOfHexChars() {
+  function testXQuoteHexadecimalCanConsistOfNoChars() {
+    $this->assertContains(
+      array('type' => 'hexadecimal', 'value' => "x''"),
+      $this->lexer->run("x''")
+    );
+  }
+  
+  function testXQuoteHexadecimalCannotConsistOfOddNumberOfHexChars() {
     $this->assertNotContains(
       array('type' => 'hexadecimal', 'value' => "x'd'"),
       $this->lexer->run("x'd'")
@@ -544,17 +563,24 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     );
   }
   
-  function test0XHexadecimalMustContainEvenNumberOfHexChars() {
+  function test0XHexadecimalCannotConsistOfNoChars() {
     $this->assertNotContains(
-      array('type' => 'hexadecimal', 'value' => "0xd"),
-      $this->lexer->run("0xd")
+      array('type' => 'hexadecimal', 'value' => "0x"),
+      $this->lexer->run("0x")
     );
   }
   
-  function testHexadecimalCannotBeFollowedByUnderscore() {
+  function test0XHexadecimalCanContainOddNumberOfHexChars() {
+    $this->assertContains(
+      array('type' => 'hexadecimal', 'value' => "x''"),
+      $this->lexer->run("x''")
+    );
+  }
+  
+  function testHexadecimalCannotContainNonHexChar() {
     $this->assertNotContains(
-      array('type' => 'hexadecimal', 'value' => "0xd0"),
-      $this->lexer->run("0xd0_")
+      array('type' => 'hexadecimal', 'value' => "0xdz"),
+      $this->lexer->run("0xdz")
     );
   }
   
@@ -566,12 +592,127 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
   }
   
   /*****************************************************************************
+   * Bit-Field
+   ****************************************************************************/
+  
+  function testBQuoteBitFieldIsBitField() {
+    $this->assertContains(
+      array('type' => 'bit_field', 'value' => "b'01'"),
+      $this->lexer->run("b'01'")
+    );
+  }
+  
+  function testBitFieldCannotContainNonBinaryChar() {
+    $this->assertNotContains(
+      array('type' => 'bit_field', 'value' => "b'02'"),
+      $this->lexer->run("b'02'")
+    );
+  }
+  
+  /*****************************************************************************
+   * System Variables
+   ****************************************************************************/
+  
+  function testMysqlSystemVariableIsSystemVariable() {
+    $this->assertContains(
+      array('type' => 'system_variable', 'value' => '@@version'),
+      $this->lexer->run('@@version')
+    );
+  }
+  
+  function testSystemVariableCanContainDollarSign() {
+    $this->assertContains(
+      array('type' => 'system_variable', 'value' => '@@ver$ion'),
+      $this->lexer->run('@@ver$ion')
+    );
+  }
+  
+  function testSystemVariableCanContainUnderscore() {
+    $this->assertContains(
+      array('type' => 'system_variable', 'value' => '@@ver_sion'),
+      $this->lexer->run('@@ver_sion')
+    );
+  }
+  
+  function testSystemVariableCanContainPeriod() {
+    $this->assertContains(
+      array('type' => 'system_variable', 'value' => '@@ver.sion'),
+      $this->lexer->run('@@ver.sion')
+    );
+  }
+  function testSystemVariableCanContainDigit() {
+    $this->assertContains(
+      array('type' => 'system_variable', 'value' => '@@ver2ion'),
+      $this->lexer->run('@@ver2ion')
+    );
+  }
+  
+  /*****************************************************************************
+   * User-Defined Variables
+   ****************************************************************************/
+  
+  function testUnquotedMysqlUserDefinedVariableIsUserDefinedVariable() {
+    $this->assertContains(
+      array('type' => 'user_defined_variable', 'value' => '@version'),
+      $this->lexer->run('@version')
+    );
+  }
+  
+  function testUnquotedUserDefinedVariableCanContainDollarSign() {
+    $this->assertContains(
+      array('type' => 'user_defined_variable', 'value' => '@ver$ion'),
+      $this->lexer->run('@ver$ion')
+    );
+  }
+  
+  function testUnquotedUserDefinedVariableCanContainUnderscore() {
+    $this->assertContains(
+      array('type' => 'user_defined_variable', 'value' => '@ver_sion'),
+      $this->lexer->run('@ver_sion')
+    );
+  }
+  
+  function testUnquotedUserDefinedVariableCanContainPeriod() {
+    $this->assertContains(
+      array('type' => 'user_defined_variable', 'value' => '@ver.sion'),
+      $this->lexer->run('@ver.sion')
+    );
+  }
+  
+  function testUnquotedUserDefinedVariableCanContainDigit() {
+    $this->assertContains(
+      array('type' => 'user_defined_variable', 'value' => '@ver2ion'),
+      $this->lexer->run('@ver2ion')
+    );
+  }
+  
+  function testUserDefinedVariableCanBeSingleQuoted() {
+    $this->assertContains(
+      array('type' => 'user_defined_variable', 'value' => "@'version'"),
+      $this->lexer->run("@'version'")
+    );
+  }
+  
+  function testUserDefinedVariableCanBeDoubleQuoted() {
+    $this->assertContains(
+      array('type' => 'user_defined_variable', 'value' => '@"version"'),
+      $this->lexer->run('@"version"')
+    );
+  }
+  
+  function testUserDefinedVariableCanBeBacktickQuoted() {
+    $this->assertContains(
+      array('type' => 'user_defined_variable', 'value' => '@`version`'),
+      $this->lexer->run('@`version`')
+    );
+  }
+  
+  /*****************************************************************************
    * Unknown
    ****************************************************************************/
   
   public function providerUnknowns() {
     $unknowns = array(
-      '12foo',
       ':foo',
       '[foo',
       '++',
