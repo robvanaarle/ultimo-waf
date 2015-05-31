@@ -9,40 +9,67 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     $this->lexer = new MySqlLexer();
   }
   
-  public function providerAlphaCharacter() {
+  public function providerAlphaNumbericCharacters() {
+    return array(
+      array('a'),
+      array('_'),
+      array('0'),
+      array('1')
+    );
+  }
+  
+  public function providerNumericCharacters() {
+    return array(
+      array('0'),
+      array('1')
+    );
+  }
+  
+  public function providerAlphaCharacters() {
     return array(
       array('a'),
       array('_')
     );
   }
   
-  public function providerWhitespace() {
+  public function providerWhitespaceCharacters() {
     return array(
-      array("\n"),
-      array("\t"),
-      array("\r"),
+      array("\n"), // %0A
+      array("\t"), // %09
+      array("\r"), // %0D
       array(urldecode("%0B")),
       array(urldecode("%0C"))
     );
   }
   
-  public function providerHorizontalWhitespace() {
+  public function providerHorizontalWhitespaceCharacters() {
     return array(
-      array("\t"),
-      array("\r"),
+      array("\t"), // %09
+      array("\r"), // %0D
       array(urldecode("%0B")),
       array(urldecode("%0C"))
     );
   }
   
-  public function testIntIsParsedAsNumber() {
+  public function providerQuoteCharacters() {
+    return array(
+      array("'"),
+      array('"')
+    );
+  }
+  
+  /*****************************************************************************
+   * Number
+   ****************************************************************************/
+  
+  public function testNumberCanBeAnInteger() {
     $this->assertContains(
       array('type' => 'number', 'value' => '42'),
       $this->lexer->run('42')
     );
   }
   
-  public function testFloatIsParsedAsNumber() {
+  public function testNumberCanBeAFloat() {
     $this->assertContains(
       array('type' => 'number', 'value' => '42.1337'),
       $this->lexer->run('42.1337')
@@ -50,10 +77,9 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
   }
   
   /**
-   * @dataProvider providerWhitespace
+   * @dataProvider providerWhitespaceCharacters
    */
-  function testNumberFollowedByWhitespaceIsParsedAsNumber($whitespace) {
-    echo urlencode($whitespace);
+  function testNumberCanBeFollowedByWhitespace($whitespace) {
     $this->assertContains(
       array('type' => 'number', 'value' => '42'),
       $this->lexer->run('42'.$whitespace)
@@ -61,33 +87,510 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
   }
   
   /**
-   * @dataProvider providerAlphaCharacter
+   * @dataProvider providerAlphaCharacters
    */
-  public function testNumberFollowedByAlphaCharaterIsNotParsedAsNumber($alphaChar) {
+  public function testNumberCannotBeFollowedByAlphaCharacter($alphaChar) {
     $this->assertNotContains(
       array('type' => 'number', 'value' => '42'),
       $this->lexer->run('42' . $alphaChar)
     );
   }
   
-  public function testIntFollowedByDotCharaterIsNotParsedAsNumber() {
+  public function testIntegerNumberCannotBeFollowedByAPeriod() {
     $this->assertNotContains(
       array('type' => 'number', 'value' => '42'),
       $this->lexer->run('42.')
     );
   }
   
-  public function testFloatFollowedByDotCharaterIsNotParsedAsNumber() {
+  public function testFloatNumberCannotBeFollowedByAPeriod() {
     $this->assertNotContains(
       array('type' => 'number', 'value' => '42.1337.'),
       $this->lexer->run('42.1337.')
     );
   }
   
-  public function testNumberFollowedByCommaIsParsedAsNumber() {
+  public function testNumberCanBeFollowedByAComma() {
     $this->assertContains(
       array('type' => 'number', 'value' => '42'),
       $this->lexer->run('42,')
+    );
+  }
+  
+  /*****************************************************************************
+   * String
+   ****************************************************************************/
+  
+  public function testStringCanBeSingleQuoted() {
+    $this->assertContains(
+      array('type' => 'string', 'value' => "'abc'"),
+      $this->lexer->run("'abc'")
+    );
+  }
+  
+  public function testStringCanBeDoubleQuoted() {
+    $this->assertContains(
+      array('type' => 'string', 'value' => '"abc"'),
+      $this->lexer->run('"abc"')
+    );
+  }
+  
+  public function testStringCanContainEscapedQuote() {
+    $this->assertContains(
+      array('type' => 'string', 'value' => "'a\'bc'"),
+      $this->lexer->run("'a\'bc'")
+    );
+  }
+  
+  /*****************************************************************************
+   * Quoted Identifier
+   ****************************************************************************/
+  
+  public function testQuotedIdentifierIsBacktickQuoted() {
+    $this->assertContains(
+      array('type' => 'quoted_identifier', 'value' => "`abc`"),
+      $this->lexer->run("`abc`")
+    );
+  }
+  
+  public function testQuotedIdentifierCannotContainEscapedBacktick() {
+    $this->assertNotContains(
+      array('type' => 'quoted_identifier', 'value' => "`ab\`c`"),
+      $this->lexer->run("`ab\`")
+    );
+  }
+  
+  /*****************************************************************************
+   * Logical Operator 
+   ****************************************************************************/
+  
+  public function providerLogicalOperators() {
+    $logicalOperators = array('and', '&&', 'or', '||', 'xor');
+    
+    $data = array();
+    foreach ($logicalOperators as $logicalOperator) {
+      $data[] = array($logicalOperator);
+    }
+    return $data;
+  }
+  
+  /**
+   * @dataProvider providerLogicalOperators
+   */
+  public function testMySqlLogicalOperatorIsLogicalOperator($logicalOperator) {
+    $this->assertContains(
+      array('type' => 'logical_operator', 'value' => $logicalOperator),
+      $this->lexer->run($logicalOperator)
+    );
+  }
+  
+  public function testAmpAmpIsAnLogicalOperator() {
+    $this->assertContains(
+      array('type' => 'logical_operator', 'value' => "&&"),
+      $this->lexer->run("&&")
+    );
+  }
+  
+  /**
+   * @dataProvider providerQuoteCharacters
+   */
+  public function testLogicalOperatorCanBeFollowedByAQuote($quote) {
+    $this->assertContains(
+      array('type' => 'logical_operator', 'value' => "and"),
+      $this->lexer->run("and" . $quote)
+    );
+  }
+  
+  /**
+   * @dataProvider providerAlphaNumbericCharacters
+   */
+  public function testNonAlphaLogicalOperatorCanBeFollowedByAnAlphaNumbericCharacter($alphaNumChar) {
+    $this->assertContains(
+      array('type' => 'logical_operator', 'value' => "&&"),
+      $this->lexer->run("&&" . $alphaNumChar)
+    );
+  }
+  
+  /**
+   * @dataProvider providerAlphaNumbericCharacters
+   */
+  public function testAlphaLogicalOperatorCannotBeFollowedByAnAlphaNumbericCharacter($alphaNumChar) {
+    $this->assertNotContains(
+      array('type' => 'logical_operator', 'value' => "and"),
+      $this->lexer->run("and" . $alphaNumChar)
+    );
+  }
+  
+  /*****************************************************************************
+   * Operator 
+   ****************************************************************************/
+  
+  public function providerOperators() {
+    $operators = array('&&', '=', ':=', '&', '~', '|', '^', '/', '<=>', '>=', '>', '<<', '<=', '<', '-', '%', '...', '!=', '<>', '!', '||', '+', '>>', '*');
+    
+    // remove logical operators
+    $operators = array_diff($operators, array('&&', '||'));
+    
+    $data = array();
+    foreach ($operators as $operator) {
+      $data[] = array($operator);
+    }
+    return $data;
+  }
+  
+  /**
+   * @dataProvider providerOperators
+   */
+  public function testMySqlOperatorIsAnOperator($operator) {
+    $this->assertContains(
+      array('type' => 'operator', 'value' => $operator),
+      $this->lexer->run($operator)
+    );
+  }
+  
+  public function testCommentIsNotAMinusOperator() {
+    $this->assertNotContains(
+      array('type' => 'operator', 'value' => "-"),
+      $this->lexer->run("-- foo")
+    );
+  }
+  
+  public function testCommentIsNotADivideOperator() {
+    $this->assertNotContains(
+      array('type' => 'operator', 'value' => "/"),
+      $this->lexer->run("/* foo")
+    );
+  }
+  
+  public function testOperatorCannotBeFollowedByAnOperator() {
+    $this->assertNotContains(
+      array('type' => 'operator', 'value' => "+*"),
+      $this->lexer->run("+*")
+    );
+  }
+  
+  public function testOperatorCanBeFollowedByMultiLineComment() {
+    $this->assertContains(
+      array('type' => 'operator', 'value' => "/"),
+      $this->lexer->run("//*")
+    );
+  }
+  
+  public function testOperatorCanBeFollowedBySingleLineComment() {
+    $this->assertContains(
+      array('type' => 'operator', 'value' => "-"),
+      $this->lexer->run("---")
+    );
+  }
+  
+  /*****************************************************************************
+   * Whitespace
+   ****************************************************************************/
+  
+  /**
+   * @dataProvider providerWhitespaceCharacters
+   */
+  function testMySqlValidWhitespaceIsWhitespace($whitespace) {
+    $this->assertContains(
+      array('type' => 'whitespace', 'value' => $whitespace),
+      $this->lexer->run($whitespace)
+    );
+  }
+  
+  /*****************************************************************************
+   * Identifier
+   ****************************************************************************/
+  
+  public function providerKeywords() {
+    $keywords = array(
+      'accessible', 'add', 'all', 'alter', 'analyze', 'and',
+      'as', 'asc', 'asensitive', 'before', 'between', 'bigint', 'binary',
+      'blob', 'both', 'by', 'call', 'cascade', 'case', 'change', 'char',
+      'character', 'check', 'collate', 'column', 'condition', 'constraint',
+      'continue', 'convert', 'create', 'cross', 'current_date', 'current_time',
+      'current_timestamp', 'current_user', 'cursor', 'database', 'databases',
+      'day_hour', 'day_microsecond', 'day_minute', 'day_second', 'dec',
+      'decimal', 'declare', 'default', 'delayed', 'delete', 'desc', 'describe',
+      'deterministic', 'distinct', 'distinctrow', 'div', 'double', 'drop',
+      'dual', 'each', 'else', 'elseif', 'enclosed', 'escaped', 'exists', 'exit',
+      'explain', 'false', 'fetch', 'float', 'float4', 'float8', 'for', 'force',
+      'foreign', 'from', 'fulltext', 'generated', 'get', 'grant', 'group',
+      'having', 'high_priority', 'hour_microsecond', 'hour_minute', 'hour_second',
+      'if', 'ignore', 'in', 'index', 'infile', 'inner', 'inout', 'insensitive',
+      'insert', 'int', 'int1', 'int2', 'int3', 'int4', 'int8', 'integer',
+      'interval', 'into', 'io_after_gtids', 'io_before_gtids', 'is', 'iterate',
+      'join', 'key', 'keys', 'kill', 'leading', 'leave', 'left', 'like',
+      'limit', 'linear', 'lines', 'load', 'localtime', 'localtimestamp', 'lock',
+      'long', 'longblob', 'longtext', 'loop', 'low_priority', 'master_bind',
+      'master_ssl_verify_server_cert', 'match', 'maxvalue', 'mediumblob',
+      'mediumint', 'mediumtext', 'middleint', 'minute_microsecond', 'minute_second',
+      'mod', 'modifies', 'natural', 'nonblocking', 'not', 'no_write_to_binlog',
+      'null', 'numeric', 'on', 'optimize', 'optimizer_costs', 'option',
+      'optionally', 'or', 'order', 'out', 'outer', 'outfile', 'parse_gcol_expr',
+      'partition', 'precision', 'primary', 'procedure', 'purge', 'range', 'read',
+      'reads', 'read_write', 'real', 'references', 'regexp', 'release', 'rename',
+      'repeat', 'replace', 'require', 'resignal', 'restrict', 'return', 'revoke',
+      'right', 'rlike', 'schema', 'schemas', 'second_microsecond', 'select',
+      'sensitive', 'separator', 'set', 'show', 'signal', 'smallint', 'spatial',
+      'specific', 'sql', 'sqlexception', 'sqlstate', 'sqlwarning', 'sql_big_result',
+      'sql_calc_found_rows', 'sql_small_result', 'ssl', 'starting', 'stored',
+      'straight_join', 'table', 'terminated', 'then', 'tinyblob', 'tinyint',
+      'tinytext', 'to', 'trailing', 'trigger', 'true', 'undo', 'union', 'unique',
+      'unlock', 'unsigned', 'update', 'usage', 'use', 'using', 'utc_date',
+      'utc_time', 'utc_timestamp', 'values', 'varbinary', 'varchar', 'varcharacter',
+      'varying', 'virtual', 'when', 'where', 'while', 'with', 'write','xor',
+      'year_month', 'zerofill'
+    );
+    
+    // remove logical operators
+    $keywords = array_diff($keywords, array('and', 'or', 'xor'));
+    
+    $data = array();
+    foreach ($keywords as $keyword) {
+      $data[] = array($keyword);
+    }
+    return $data;
+  }
+  
+  /**
+   * @dataProvider providerKeywords
+   */
+  function testMySqlKeywordIsKeyword($keyword) {
+    $this->assertContains(
+      array('type' => 'keyword', 'value' => $keyword),
+      $this->lexer->run($keyword)
+    );
+  }
+  
+  public function providerFunctions() {
+    $functions = array('concat', 'concat_ws', 'ascii', 'hex', 'unhex', 'sleep', 'md5', 'benchmark', 'not_regexp');
+    
+    $data = array();
+    foreach ($functions as $function) {
+      $data[] = array($function);
+    }
+    return $data;
+  }
+  
+  /**
+   * @dataProvider providerFunctions
+   */
+  function testPopularMysqlInjectionFunctionIsFunction($function) {
+    $this->assertContains(
+      array('type' => 'function', 'value' => $function),
+      $this->lexer->run($function)
+    );
+  }
+  
+  public function providerModifiers() {
+    $modifiers = array('boolean');
+    
+    $data = array();
+    foreach ($modifiers as $modifier) {
+      $data[] = array($modifier);
+    }
+    return $data;
+  }
+  
+  /**
+   * @dataProvider providerModifiers
+   */
+  function testPopularMysqlInjectionModifierIsModifier($modifier) {
+    $this->assertContains(
+      array('type' => 'modifier', 'value' => $modifier),
+      $this->lexer->run($modifier)
+    );
+  }
+  
+  public function providerIdentifier() {
+    return array(
+      array('test'),
+      array('test123'),
+      array('test_123'),
+      array('_test')
+    );
+  }
+  
+  /**
+   * @dataProvider providerIdentifier
+   */
+  function testValidMySqlIdentifierIsIdentifier($identifier) {
+    $this->assertContains(
+      array('type' => 'identifier', 'value' => $identifier),
+      $this->lexer->run($identifier)
+    );
+  }
+  
+  /**
+   * @dataProvider providerNumericCharacters
+   */
+  function testIdentifierCannotStartWithNumericCharacter($numChar) {
+    $this->assertNotContains(
+      array('type' => 'identifier', 'value' => $numChar.'test'),
+      $this->lexer->run($numChar.'test')
+    );
+  }
+  
+  /*****************************************************************************
+   * Comment
+   ****************************************************************************/
+  
+  function testPoundCommentEndsAtNewline() {
+    $this->assertContains(
+      array('type' => 'comment', 'value' => "#foo\n"),
+      $this->lexer->run("#foo\nor 1=1")
+    );
+  }
+  
+  function testPoundCommentEndsAtEos() {
+    $this->assertContains(
+      array('type' => 'comment', 'value' => "#foo"),
+      $this->lexer->run("#foo")
+    );
+  }
+  
+  function testMinusMinusCommentEndsAtNewline() {
+    $this->assertContains(
+      array('type' => 'comment', 'value' => "-- foo\n"),
+      $this->lexer->run("-- foo\nor 1=1")
+    );
+  }
+  
+  function testMinusMinusCommentEndsAtImmediateNewline() {
+    $this->assertContains(
+      array('type' => 'comment', 'value' => "--\n"),
+      $this->lexer->run("--\nfoo")
+    );
+  }
+  
+  function testMinusMinusCommentEndsAtEos() {
+    $this->assertContains(
+      array('type' => 'comment', 'value' => "-- foo"),
+      $this->lexer->run("-- foo")
+    );
+  }
+  
+  /**
+   * @dataProvider providerHorizontalWhitespaceCharacters
+   */
+  function testMinusMinusCommentCanBeFollowedByHorizontalWhitespace($whitespace) {
+    $this->assertContains(
+      array('type' => 'comment', 'value' => "--{$whitespace}foo"),
+      $this->lexer->run("--{$whitespace}foo")
+    );
+  }
+  
+  function testUnconditionalCommentIsComment() {
+    $this->assertContains(
+      array('type' => 'comment', 'value' => "/* foobar */"),
+      $this->lexer->run("/* foobar */")
+    );
+  }
+  
+  function testExecutedCommentContentIsParsed() {
+    $this->assertEquals(array(
+        array('type' => 'executed_comment_start', 'value' => "/*!"),
+        array('type' => 'identifier', 'value' => "foobar"),
+        array('type' => 'executed_comment_end', 'value' => "*/"),
+      ),
+      $this->lexer->run("/*!foobar*/")
+    );
+  }
+  
+  function testConditionalCommentContentIsParsed() {
+    $this->assertEquals(array(
+        array('type' => 'conditional_comment_start', 'value' => "/*!0"),
+        array('type' => 'identifier', 'value' => "foobar"),
+        array('type' => 'conditional_comment_end', 'value' => "*/"),
+      ),
+      $this->lexer->run("/*!0foobar*/")
+    );
+  }
+  
+  function testNextedConditionalAndExecutedCommentContentIsParsed() {
+    $this->assertEquals(array(
+        array('type' => 'conditional_comment_start', 'value' => "/*!0"),
+        array('type' => 'executed_comment_start', 'value' => "/*!"),
+        array('type' => 'identifier', 'value' => "foobar"),
+        array('type' => 'executed_comment_end', 'value' => "*/"),
+        array('type' => 'conditional_comment_end', 'value' => "*/"),
+      ),
+      $this->lexer->run("/*!0/*!foobar*/*/")
+    );
+  }
+  
+  /*****************************************************************************
+   * Hexadecimal
+   ****************************************************************************/
+  
+  function testXQuoteHexadecimalIsHexadecimal() {
+    $this->assertContains(
+      array('type' => 'hexadecimal', 'value' => "x'd0'"),
+      $this->lexer->run("x'd0'")
+    );
+  }
+  
+  function testXQuoteHexadecimalMustContainEvenNumberOfHexChars() {
+    $this->assertNotContains(
+      array('type' => 'hexadecimal', 'value' => "x'd'"),
+      $this->lexer->run("x'd'")
+    );
+  }
+  
+  function test0XHexadecimalIsHexadecimal() {
+    $this->assertContains(
+      array('type' => 'hexadecimal', 'value' => "0xd0"),
+      $this->lexer->run("0xd0")
+    );
+  }
+  
+  function test0XHexadecimalMustContainEvenNumberOfHexChars() {
+    $this->assertNotContains(
+      array('type' => 'hexadecimal', 'value' => "0xd"),
+      $this->lexer->run("0xd")
+    );
+  }
+  
+  function testHexadecimalCannotBeFollowedByUnderscore() {
+    $this->assertNotContains(
+      array('type' => 'hexadecimal', 'value' => "0xd0"),
+      $this->lexer->run("0xd0_")
+    );
+  }
+  
+  function testHexadecimalCannotBeFollowedByAlphaCharacter() {
+    $this->assertNotContains(
+      array('type' => 'hexadecimal', 'value' => "0xd0z"),
+      $this->lexer->run("0xd0z")
+    );
+  }
+  
+  /*****************************************************************************
+   * Unknown
+   ****************************************************************************/
+  
+  public function providerUnknowns() {
+    $unknowns = array(
+      '12foo',
+      ':foo',
+      '[foo',
+      '++',
+    );
+    
+    $data = array();
+    foreach ($unknowns as $unknown) {
+      $data[] = array($unknown);
+    }
+    return $data;
+  }
+  
+  /**
+   * @dataProvider providerUnknowns
+   */
+  function testRemainingTokensAreUnknown($unknown) {
+    $this->assertContains(
+      array('type' => 'unknown', 'value' => $unknown),
+      $this->lexer->run($unknown)
     );
   }
 }

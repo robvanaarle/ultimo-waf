@@ -4,6 +4,12 @@ namespace ultimo\waf\mysql;
 
 class MySqlTokenMatcher {
 
+  /**
+    * IMPORTANT TODO:
+    * SELECT /-*!0 /*-! 'foobar' *-/, 'foo' (without -'s) is valid,  but with another *-/ it's not?!
+    *   nested comments only have to end with one *-/?
+    */
+  
   // TODO: max nesting of comments to prevent performance problems => very suspicious
   // TODO: find a way to remove recursiveness for better performance
   public function match(array $pattern, array $tokens) {

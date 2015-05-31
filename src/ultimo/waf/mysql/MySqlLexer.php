@@ -124,21 +124,20 @@ class MySqlLexer {
  
   protected function consumeLogicalOperator() {
     //$logicalOperators = array('and', '&&', 'or', '||', 'xor');
-    return $this->match("(and|\&\&|or|\|\||xor)($|\s|\x0b)", 'logical_operator', 1);
+    if ($this->match("(\&\&|\|\|)", 'logical_operator', 1)) {
+      return true;
+    }
+    
+    return $this->match("(and|or|xor)($|[^a-z0-9_])", 'logical_operator', 1);
   }
   
   protected function consumeOperator() {
-    // array('&&', '=', ':=', '&', '~', '|', '^', '/', '<=>', '>=', '>', '<<', '<=', '<', '-', '%', '...', '!=', '<>', '!', '||', '+', '>>', '*', '-')
- 
-    // FIXED: an operator may not follow another operator. This reduces false positives
-    //   How many real-life false positives will this prevent? If not many, then
-    //   why not just match for one or more characters used in operators. Then this
-    //   regex can be removed completely.
-    
-    // contains logical operators
+    // array('&&', '=', ':=', '&', '~', '|', '^', '/', '<=>', '>=', '>', '<<', '<=', '<', '-', '%', '...', '!=', '<>', '!', '||', '+', '>>', '*')
+
+    // also contains the logical operators
     return $this->match(
-              "(&&|\=|\:\=|&|~|\||\^|\/|\<\=\>|\>\=|\>|\<\<|\<\=|\<|\-|%|\.\.\.|\!\=|\<\>|\!|\|\||\+|\>\>|\*|\-)" // the valid operators
-            . "($|\/\*|\-\-[\s\x0b]|[^&|\=|\:|~|\||\^|\/|\<|\>|\-|%|\.|\!|\||\+|\*])" // must be followed by end, comment or non operator character
+              "(&&|\=|\:\=|&|~|\||\^|\/|\<\=\>|\>\=|\>|\<\<|\<\=|\<|\-|%|\.\.\.|\!\=|\<\>|\!|\|\||\+|\>\>|\*)" // the valid operators
+            . "($|\/\*|\-\-($|[\s\x0b])|[^&|\=|\:|~|\||\^|\/|\<|\>|\-|%|\.|\!|\||\+|\*])" // must be followed by end, comment or non operator character
             , 'operator', 1);
   }
  
@@ -147,7 +146,7 @@ class MySqlLexer {
   }
  
   protected function consumeIdentifier() {      
-    if (preg_match("/^[a-z][a-z0-9_]*/", $this->choppedValue, $matches)) {
+    if (preg_match("/^[a-z_][a-z0-9_]*/", $this->choppedValue, $matches)) {
       $word = $matches[0];
    
       // TODO: add more keywords?
@@ -201,7 +200,8 @@ class MySqlLexer {
       
       if (in_array($word, $keywords)) {
         $this->consume($word, 'keyword');
-      } elseif (in_array($word, array('concat', 'concat_ws', 'ascii', 'hex', 'unhex', 'sleep', 'md5', 'benchmark', 'rlike', 'regexp', 'not_regexp'))) {
+      } elseif (in_array($word, array('concat', 'concat_ws', 'ascii', 'hex', 'unhex', 'sleep', 'md5', 'benchmark', 'not_regexp'))) {
+        // to reduce false positives, only functions popular for MySQL injection are matched
         $this->consume($word, 'function');
       } elseif (in_array($word, array('boolean'))) {
         $this->consume($word, 'modifier');
@@ -217,6 +217,12 @@ class MySqlLexer {
   protected function consumeComment() {
     //https://dev.mysql.com/doc/refman/5.7/en/comments.html
  
+    /**
+     * IMPORTANT TODO:
+     * SELECT /-*!0 /*-! 'foobar' *-/, 'foo' (without -'s) is valid,  but with another *-/ it's not?!
+     *   nested comments only have to end with one *-/?
+     */
+    
     if ($this->next == '*') {
         
       if (count($this->commentStack) > 0) {
@@ -239,10 +245,10 @@ class MySqlLexer {
         return true;
       }
     } else if ($this->next == '#' || $this->next == '-') {
-      if ($this->match('(#.*?($|\n)|\-\-($|\h|\x0b).*?($|\n)|\-\-\n)', 'comment', 1)) {
+      if ($this->match('(#.*?($|\n)|\-\-($|\h|\x0c|\x0d|\x0b).*?($|\n)|\-\-\n)', 'comment', 1)) {
         return true;
       }
-    }
+    } 
 
     // TODO:
     // sometimes consume within /*!\d+ ... */
@@ -328,14 +334,15 @@ class MySqlLexer {
   
     $i = 0;
     while(strlen($this->choppedValue) > 0) {
-     
+      $i++;
+      
       // temporary failsafe
       if ($i > 100) {
         $this->write("ERROR: many steps, error in lexer?");
         exit();
       }
      
-      $this->write("next: '{$this->next}', vc-depth: {$this->ccDepth}\n");
+      $this->write("next: '{$this->next}', cc-depth: {$this->ccDepth}\n");
     
       if (in_array($this->next, array('0', 'x'))) {
         if ($this->consumeHexadecimal()) {
@@ -374,10 +381,7 @@ class MySqlLexer {
         continue;
       }
    
-      if ($this->next == '.') {
-        $this->consume('.', 'period');
-        continue;
-      } elseif (in_array($this->next, array('#', '-', '/', '*'))) {
+      if (in_array($this->next, array('#', '-', '/', '*'))) {
         if ($this->consumeComment()) {
           continue;
         }
@@ -394,14 +398,17 @@ class MySqlLexer {
           continue;
         }
       }
+      
+      if ($this->next == '.') {
+        $this->consume('.', 'period');
+        continue;
+      }
      
       if ($this->consumeIdentifier()) {
         continue;
       }
    
       $this->consumeUnknown();
-    
-      $i++;
     }
   
     return $this->tokens;
