@@ -99,18 +99,19 @@ class MySqlTokenMatcherTest extends \PHPUnit_Framework_TestCase {
   public function testMatcherIgnoresConditionalComment() {
     $this->assertTrue($this->matcher->match(
       '/%identifier %whitespace* %identifier/',
-      $this->lexer->run('a /*!0 1 */ c')
+      $this->lexer->run('a /*!0 1 */ c'),
+      true
     ));
   }
   
-  // MySql seems to reject nested conditional comments with unequal version integers,
-  // so this test is not (yet?) necessary.
-  //public function testMatcherMatchesConditionalCommentAndIgnoresNestedConditionalComment() {
-  //  $this->assertTrue($this->matcher->match(
-  //    '/%identifier %whitespace* %number %whitespace* %identifier/',
-  //    $this->lexer->run('a /*!1 2 /*!0 "s" */ c')
-  //  ));
-  //}
+  public function testMatcherMatchesNestedConditionalCommentAsAWhole() {
+    // nested comments are ended with one ending comment
+    $this->assertFalse($this->matcher->match(
+      '/%identifier %whitespace* %number %whitespace* %identifier/',
+      $this->lexer->run('a /*!0 2 /*!1 "s" */ c'),
+      true
+    ));
+  }
   
    public function testMatcherUnmatchesTokenTypeNotInPattern() {
     $this->assertFalse($this->matcher->match(
