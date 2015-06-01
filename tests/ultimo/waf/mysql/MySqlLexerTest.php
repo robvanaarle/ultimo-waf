@@ -9,7 +9,7 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     $this->lexer = new MySqlLexer();
   }
   
-  public function providerAlphaNumbericCharacters() {
+  public function providerAlphaNumericCharacters() {
     return array(
       array('a'),
       array('_'),
@@ -158,130 +158,6 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
   }
   
   /*****************************************************************************
-   * Logical Operator 
-   ****************************************************************************/
-  
-  public function providerLogicalOperators() {
-    $logicalOperators = array('and', '&&', 'or', '||', 'xor');
-    
-    $data = array();
-    foreach ($logicalOperators as $logicalOperator) {
-      $data[] = array($logicalOperator);
-    }
-    return $data;
-  }
-  
-  /**
-   * @dataProvider providerLogicalOperators
-   */
-  public function testMySqlLogicalOperatorIsLogicalOperator($logicalOperator) {
-    $this->assertContains(
-      array('type' => 'logical_operator', 'value' => $logicalOperator),
-      $this->lexer->run($logicalOperator)
-    );
-  }
-  
-  public function testAmpAmpIsAnLogicalOperator() {
-    $this->assertContains(
-      array('type' => 'logical_operator', 'value' => "&&"),
-      $this->lexer->run("&&")
-    );
-  }
-  
-  /**
-   * @dataProvider providerQuoteCharacters
-   */
-  public function testLogicalOperatorCanBeFollowedByAQuote($quote) {
-    $this->assertContains(
-      array('type' => 'logical_operator', 'value' => "and"),
-      $this->lexer->run("and" . $quote)
-    );
-  }
-  
-  /**
-   * @dataProvider providerAlphaNumbericCharacters
-   */
-  public function testNonAlphaLogicalOperatorCanBeFollowedByAnAlphaNumbericCharacter($alphaNumChar) {
-    $this->assertContains(
-      array('type' => 'logical_operator', 'value' => "&&"),
-      $this->lexer->run("&&" . $alphaNumChar)
-    );
-  }
-  
-  /**
-   * @dataProvider providerAlphaNumbericCharacters
-   */
-  public function testAlphaLogicalOperatorCannotBeFollowedByAnAlphaNumbericCharacter($alphaNumChar) {
-    $this->assertNotContains(
-      array('type' => 'logical_operator', 'value' => "and"),
-      $this->lexer->run("and" . $alphaNumChar)
-    );
-  }
-  
-  /*****************************************************************************
-   * Operator 
-   ****************************************************************************/
-  
-  public function providerOperators() {
-    $operators = array('&&', '=', ':=', '&', '~', '|', '^', '/', '<=>', '>=', '>', '<<', '<=', '<', '-', '%', '...', '!=', '<>', '!', '||', '+', '>>', '*');
-    
-    // remove logical operators
-    $operators = array_diff($operators, array('&&', '||'));
-    
-    $data = array();
-    foreach ($operators as $operator) {
-      $data[] = array($operator);
-    }
-    return $data;
-  }
-  
-  /**
-   * @dataProvider providerOperators
-   */
-  public function testMySqlOperatorIsAnOperator($operator) {
-    $this->assertContains(
-      array('type' => 'operator', 'value' => $operator),
-      $this->lexer->run($operator)
-    );
-  }
-  
-  public function testCommentIsNotAMinusOperator() {
-    $this->assertNotContains(
-      array('type' => 'operator', 'value' => "-"),
-      $this->lexer->run("-- foo")
-    );
-  }
-  
-  public function testCommentIsNotADivideOperator() {
-    $this->assertNotContains(
-      array('type' => 'operator', 'value' => "/"),
-      $this->lexer->run("/* foo")
-    );
-  }
-  
-  // Remove this one, as this checks syntax?
-  public function testOperatorCannotBeFollowedByAnOperator() {
-    $this->assertNotContains(
-      array('type' => 'operator', 'value' => "+*"),
-      $this->lexer->run("+*")
-    );
-  }
-  
-  public function testOperatorCanBeFollowedByMultiLineComment() {
-    $this->assertContains(
-      array('type' => 'operator', 'value' => "/"),
-      $this->lexer->run("//*")
-    );
-  }
-  
-  public function testOperatorCanBeFollowedBySingleLineComment() {
-    $this->assertContains(
-      array('type' => 'operator', 'value' => "-"),
-      $this->lexer->run("---")
-    );
-  }
-  
-  /*****************************************************************************
    * Whitespace
    ****************************************************************************/
   
@@ -298,107 +174,6 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
   /*****************************************************************************
    * Identifier
    ****************************************************************************/
-  
-  public function providerKeywords() {
-    $keywords = array(
-      'accessible', 'add', 'all', 'alter', 'analyze', 'and',
-      'as', 'asc', 'asensitive', 'before', 'between', 'bigint', 'binary',
-      'blob', 'both', 'by', 'call', 'cascade', 'case', 'change', 'char',
-      'character', 'check', 'collate', 'column', 'condition', 'constraint',
-      'continue', 'convert', 'create', 'cross', 'current_date', 'current_time',
-      'current_timestamp', 'current_user', 'cursor', 'database', 'databases',
-      'day_hour', 'day_microsecond', 'day_minute', 'day_second', 'dec',
-      'decimal', 'declare', 'default', 'delayed', 'delete', 'desc', 'describe',
-      'deterministic', 'distinct', 'distinctrow', 'div', 'double', 'drop',
-      'dual', 'each', 'else', 'elseif', 'enclosed', 'escaped', 'exists', 'exit',
-      'explain', 'false', 'fetch', 'float', 'float4', 'float8', 'for', 'force',
-      'foreign', 'from', 'fulltext', 'generated', 'get', 'grant', 'group',
-      'having', 'high_priority', 'hour_microsecond', 'hour_minute', 'hour_second',
-      'if', 'ignore', 'in', 'index', 'infile', 'inner', 'inout', 'insensitive',
-      'insert', 'int', 'int1', 'int2', 'int3', 'int4', 'int8', 'integer',
-      'interval', 'into', 'io_after_gtids', 'io_before_gtids', 'is', 'iterate',
-      'join', 'key', 'keys', 'kill', 'leading', 'leave', 'left', 'like',
-      'limit', 'linear', 'lines', 'load', 'localtime', 'localtimestamp', 'lock',
-      'long', 'longblob', 'longtext', 'loop', 'low_priority', 'master_bind',
-      'master_ssl_verify_server_cert', 'match', 'maxvalue', 'mediumblob',
-      'mediumint', 'mediumtext', 'middleint', 'minute_microsecond', 'minute_second',
-      'mod', 'modifies', 'natural', 'nonblocking', 'not', 'no_write_to_binlog',
-      'null', 'numeric', 'on', 'optimize', 'optimizer_costs', 'option',
-      'optionally', 'or', 'order', 'out', 'outer', 'outfile', 'parse_gcol_expr',
-      'partition', 'precision', 'primary', 'procedure', 'purge', 'range', 'read',
-      'reads', 'read_write', 'real', 'references', 'regexp', 'release', 'rename',
-      'repeat', 'replace', 'require', 'resignal', 'restrict', 'return', 'revoke',
-      'right', 'rlike', 'schema', 'schemas', 'second_microsecond', 'select',
-      'sensitive', 'separator', 'set', 'show', 'signal', 'smallint', 'spatial',
-      'specific', 'sql', 'sqlexception', 'sqlstate', 'sqlwarning', 'sql_big_result',
-      'sql_calc_found_rows', 'sql_small_result', 'ssl', 'starting', 'stored',
-      'straight_join', 'table', 'terminated', 'then', 'tinyblob', 'tinyint',
-      'tinytext', 'to', 'trailing', 'trigger', 'true', 'undo', 'union', 'unique',
-      'unlock', 'unsigned', 'update', 'usage', 'use', 'using', 'utc_date',
-      'utc_time', 'utc_timestamp', 'values', 'varbinary', 'varchar', 'varcharacter',
-      'varying', 'virtual', 'when', 'where', 'while', 'with', 'write','xor',
-      'year_month', 'zerofill'
-    );
-    
-    // remove logical operators
-    $keywords = array_diff($keywords, array('and', 'or', 'xor'));
-    
-    $data = array();
-    foreach ($keywords as $keyword) {
-      $data[] = array($keyword);
-    }
-    return $data;
-  }
-  
-  /**
-   * @dataProvider providerKeywords
-   */
-  function testMySqlKeywordIsKeyword($keyword) {
-    $this->assertContains(
-      array('type' => 'keyword', 'value' => $keyword),
-      $this->lexer->run($keyword)
-    );
-  }
-  
-  public function providerFunctions() {
-    $functions = array('concat', 'concat_ws', 'ascii', 'hex', 'unhex', 'sleep', 'md5', 'benchmark', 'not_regexp');
-    
-    $data = array();
-    foreach ($functions as $function) {
-      $data[] = array($function);
-    }
-    return $data;
-  }
-  
-  /**
-   * @dataProvider providerFunctions
-   */
-  function testPopularMysqlInjectionFunctionIsFunction($function) {
-    $this->assertContains(
-      array('type' => 'function', 'value' => $function),
-      $this->lexer->run($function)
-    );
-  }
-  
-  public function providerModifiers() {
-    $modifiers = array('boolean');
-    
-    $data = array();
-    foreach ($modifiers as $modifier) {
-      $data[] = array($modifier);
-    }
-    return $data;
-  }
-  
-  /**
-   * @dataProvider providerModifiers
-   */
-  function testPopularMysqlInjectionModifierIsModifier($modifier) {
-    $this->assertContains(
-      array('type' => 'modifier', 'value' => $modifier),
-      $this->lexer->run($modifier)
-    );
-  }
   
   public function providerIdentifier() {
     return array(
@@ -421,6 +196,77 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     $this->assertContains(
       array('type' => 'identifier', 'value' => $identifier),
       $this->lexer->run($identifier)
+    );
+  }
+  
+  /*****************************************************************************
+   * Custom types
+   ****************************************************************************/
+  
+  function testCustomTypeCanHaveAlphaNumericValue() {
+    $lexer = new MySqlLexer(array('keyword' => array('select')));
+    $this->assertContains(
+      array('type' => 'keyword', 'value' => "select"),
+      $lexer->run("select")
+    );
+  }
+  
+  function testCustomTypeCanHaveNonAlphaNumericValue() {
+    $lexer = new MySqlLexer(array('comparison-operator' => array('<=>')));
+    $this->assertContains(
+      array('type' => 'comparison-operator', 'value' => "<=>"),
+      $lexer->run("<=>")
+    );
+  }
+  
+  /**
+   * @dataProvider providerAlphaNumericCharacters
+   */
+  function testCustomTypeWithNonAlphaNumericValueCanBeFollowedByAlphaNumericCharacter($alphaNumChar) {
+    $lexer = new MySqlLexer(array('comparison-operator' => array('<=>')));
+    $this->assertContains(
+      array('type' => 'comparison-operator', 'value' => "<=>"),
+      $lexer->run("<=>".$alphaNumChar)
+    );
+  }
+  
+  public function testMinMinCommentIsNotACustomType() {
+    $lexer = new MySqlLexer(array('math-operator' => array('-')));
+    $this->assertNotContains(
+      array('type' => 'math-operator', 'value' => "-"),
+      $lexer->run("-- foo")
+    );
+  }
+  
+  public function testCommentIsNotACustomType() {
+    $lexer = new MySqlLexer(array('math-operator' => array('/')));
+    $this->assertNotContains(
+      array('type' => 'math-operator', 'value' => "/"),
+      $lexer->run("/* foo */")
+    );
+  }
+  
+  public function testCustomTypeWithNonAlphaNumericValueCanBeFollowedByMinMinComment() {
+    $lexer = new MySqlLexer(array('math-operator' => array('/')));
+    $this->assertContains(
+      array('type' => 'math-operator', 'value' => "/"),
+      $lexer->run("/-- foo")
+    );
+  }
+  
+  public function testCustomTypeWithNonAlphaNumericValueCanBeFollowedByPoundComment() {
+    $lexer = new MySqlLexer(array('math-operator' => array('/')));
+    $this->assertContains(
+      array('type' => 'math-operator', 'value' => "/"),
+      $lexer->run("/#foo")
+    );
+  }
+  
+  public function testCustomTypeWithNonAlphaNumericValueCanBeFollowedByMultiLineComment() {
+    $lexer = new MySqlLexer(array('math-operator' => array('/')));
+    $this->assertContains(
+      array('type' => 'math-operator', 'value' => "/"),
+      $lexer->run("//*")
     );
   }
   
@@ -483,9 +329,9 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
   
   function testExecutedCommentContentIsParsed() {
     $this->assertEquals(array(
-        array('type' => 'executed_comment_start', 'value' => "/*!"),
+        array('type' => 'executed-comment-start', 'value' => "/*!"),
         array('type' => 'identifier', 'value' => "foobar"),
-        array('type' => 'comment_end', 'value' => "*/"),
+        array('type' => 'comment-end', 'value' => "*/"),
       ),
       $this->lexer->run("/*!foobar*/")
     );
@@ -493,9 +339,9 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
   
   function testConditionalCommentContentIsParsed() {
     $this->assertEquals(array(
-        array('type' => 'conditional_comment_start', 'value' => "/*!0"),
+        array('type' => 'conditional-comment-start', 'value' => "/*!0"),
         array('type' => 'identifier', 'value' => "foobar"),
-        array('type' => 'comment_end', 'value' => "*/"),
+        array('type' => 'comment-end', 'value' => "*/"),
       ),
       $this->lexer->run("/*!0foobar*/")
     );
@@ -503,10 +349,10 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
   
   function testNextedConditionalAndExecutedCommentContentIsParsed() {
     $this->assertEquals(array(
-        array('type' => 'conditional_comment_start', 'value' => "/*!0"),
-        array('type' => 'executed_comment_start', 'value' => "/*!"),
+        array('type' => 'conditional-comment-start', 'value' => "/*!0"),
+        array('type' => 'executed-comment-start', 'value' => "/*!"),
         array('type' => 'identifier', 'value' => "foobar"),
-        array('type' => 'comment_end', 'value' => "*/")
+        array('type' => 'comment-end', 'value' => "*/")
       ),
       $this->lexer->run("/*!0/*!foobar*/")
     );
@@ -578,14 +424,14 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
   
   function testBQuoteBitFieldIsBitField() {
     $this->assertContains(
-      array('type' => 'bit_field', 'value' => "b'01'"),
+      array('type' => 'bit-field', 'value' => "b'01'"),
       $this->lexer->run("b'01'")
     );
   }
   
   function testBitFieldCannotContainNonBinaryChar() {
     $this->assertNotContains(
-      array('type' => 'bit_field', 'value' => "b'02'"),
+      array('type' => 'bit-field', 'value' => "b'02'"),
       $this->lexer->run("b'02'")
     );
   }
@@ -596,34 +442,34 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
   
   function testMysqlSystemVariableIsSystemVariable() {
     $this->assertContains(
-      array('type' => 'system_variable', 'value' => '@@version'),
+      array('type' => 'system-variable', 'value' => '@@version'),
       $this->lexer->run('@@version')
     );
   }
   
   function testSystemVariableCanContainDollarSign() {
     $this->assertContains(
-      array('type' => 'system_variable', 'value' => '@@ver$ion'),
+      array('type' => 'system-variable', 'value' => '@@ver$ion'),
       $this->lexer->run('@@ver$ion')
     );
   }
   
   function testSystemVariableCanContainUnderscore() {
     $this->assertContains(
-      array('type' => 'system_variable', 'value' => '@@ver_sion'),
+      array('type' => 'system-variable', 'value' => '@@ver_sion'),
       $this->lexer->run('@@ver_sion')
     );
   }
   
   function testSystemVariableCanContainPeriod() {
     $this->assertContains(
-      array('type' => 'system_variable', 'value' => '@@ver.sion'),
+      array('type' => 'system-variable', 'value' => '@@ver.sion'),
       $this->lexer->run('@@ver.sion')
     );
   }
   function testSystemVariableCanContainDigit() {
     $this->assertContains(
-      array('type' => 'system_variable', 'value' => '@@ver2ion'),
+      array('type' => 'system-variable', 'value' => '@@ver2ion'),
       $this->lexer->run('@@ver2ion')
     );
   }
@@ -634,56 +480,56 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
   
   function testUnquotedMysqlUserDefinedVariableIsUserDefinedVariable() {
     $this->assertContains(
-      array('type' => 'user_defined_variable', 'value' => '@version'),
+      array('type' => 'user-defined-variable', 'value' => '@version'),
       $this->lexer->run('@version')
     );
   }
   
   function testUnquotedUserDefinedVariableCanContainDollarSign() {
     $this->assertContains(
-      array('type' => 'user_defined_variable', 'value' => '@ver$ion'),
+      array('type' => 'user-defined-variable', 'value' => '@ver$ion'),
       $this->lexer->run('@ver$ion')
     );
   }
   
   function testUnquotedUserDefinedVariableCanContainUnderscore() {
     $this->assertContains(
-      array('type' => 'user_defined_variable', 'value' => '@ver_sion'),
+      array('type' => 'user-defined-variable', 'value' => '@ver_sion'),
       $this->lexer->run('@ver_sion')
     );
   }
   
   function testUnquotedUserDefinedVariableCanContainPeriod() {
     $this->assertContains(
-      array('type' => 'user_defined_variable', 'value' => '@ver.sion'),
+      array('type' => 'user-defined-variable', 'value' => '@ver.sion'),
       $this->lexer->run('@ver.sion')
     );
   }
   
   function testUnquotedUserDefinedVariableCanContainDigit() {
     $this->assertContains(
-      array('type' => 'user_defined_variable', 'value' => '@ver2ion'),
+      array('type' => 'user-defined-variable', 'value' => '@ver2ion'),
       $this->lexer->run('@ver2ion')
     );
   }
   
   function testUserDefinedVariableCanBeSingleQuoted() {
     $this->assertContains(
-      array('type' => 'user_defined_variable', 'value' => "@'version'"),
+      array('type' => 'user-defined-variable', 'value' => "@'version'"),
       $this->lexer->run("@'version'")
     );
   }
   
   function testUserDefinedVariableCanBeDoubleQuoted() {
     $this->assertContains(
-      array('type' => 'user_defined_variable', 'value' => '@"version"'),
+      array('type' => 'user-defined-variable', 'value' => '@"version"'),
       $this->lexer->run('@"version"')
     );
   }
   
   function testUserDefinedVariableCanBeBacktickQuoted() {
     $this->assertContains(
-      array('type' => 'user_defined_variable', 'value' => '@`version`'),
+      array('type' => 'user-defined-variable', 'value' => '@`version`'),
       $this->lexer->run('@`version`')
     );
   }

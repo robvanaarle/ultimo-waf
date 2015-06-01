@@ -10,13 +10,12 @@ namespace ultimo\waf\mysql;
 class MySqlLexer {
   public $debug = false;
   public $tokens = array();
-  public $counts = array();
   
   protected $lastToken = array();
-  protected $offset = 0;
   protected $value;
   protected $next;
   protected $choppedValue; // rename to remainingValue?
+  protected $customTypes;
   
   // conditional comment depth
   //protected $commentStack = array();
@@ -51,14 +50,15 @@ class MySqlLexer {
   // add scores/weights by surrounding type of tokens
   //  eg a comma between identifier, string or number weighs more than a comma between 'invalid' tokens
   
+  public function __construct(array $customTypes=array()) {
+    $this->customTypes = $customTypes;
+  }
+  
   protected function consume($tokenValue, $type) {
-      
     $this->tokens[] = array('value' => $tokenValue, 'type' => $type);
-    //$this->offset += strlen($tokenValue);
     
     $this->choppedValue = substr($this->choppedValue, strlen($tokenValue));
     $this->next = substr($this->choppedValue, 0, 1);
-    $this->counts[$type]++;
     $this->write("  {$type} matched: {$tokenValue}\n");
     $this->lastToken = array('value' => $tokenValue, 'type' => $type);
   }
@@ -71,7 +71,6 @@ class MySqlLexer {
       return false;
     }
     
-    $this->counts[$tokens[0]['type']]--;
     $this->choppedValue = $tokens[0]['value'] . $this->choppedValue;
     $this->next = substr($this->choppedValue, 0, 1);
     return true;
@@ -151,6 +150,9 @@ class MySqlLexer {
   protected function consumeIdentifier() {      
     if (preg_match("/^[a-z0-9_\$]*[a-z_\$]+[a-z0-9_\$]*/", $this->choppedValue, $matches)) {
       $word = $matches[0];
+      
+      $this->consume($word, 'identifier');
+      return true;
    
       // TODO: add more keywords?
       // TODO: consume names of popular functions
@@ -222,21 +224,7 @@ class MySqlLexer {
     //https://dev.mysql.com/doc/refman/5.7/en/comments.html
     
     if ($this->next == '*') {
-        
-      //if (count($this->commentStack) > 0) {
-      //  $lastComment = $this->commentStack[count($this->commentStack)-1];
-      //  $type = $lastComment['type'] == 'conditional_comment_start' ? 'conditional_comment_end' : 'executed_comment_end';
-      //} else {
-      //  $type = 'unexpected_comment_end';
-      //}
-        
-      $type = 'comment_end';
-      if ($this->match('\*\/', $type)) {
-          
-        //if (count($this->commentStack) > 0) {
-        //    $comment = array_pop($this->commentStack);
-        //    //$this->undo(-2); // tokens surrounding the end of the comment could form an other token
-        //}
+      if ($this->match('\*\/', 'comment-end')) {
         return true;
       }
     } else if ($this->next == '#' || $this->next == '-') {
@@ -248,17 +236,14 @@ class MySqlLexer {
     // /*!(\d+)? ... */
     if (preg_match("/^\/\*\!([\d]+)?/", $this->choppedValue, $matches)) {
       if (isset($matches[1])) {
-        $this->consume("/*!" . $matches[1], 'conditional_comment_start');
+        $this->consume("/*!" . $matches[1], 'conditional-comment-start');
       } else {
-        $this->consume("/*!", 'executed_comment_start');
+        $this->consume("/*!", 'executed-comment-start');
       }
-      //$this->undo(-2); // tokens surrounding the start of the comment could form an other token
-      //$this->commentStack[] = $this->lastToken;
       return true;
     }
   
     if ($this->match('\/\*.*?\*\/', 'comment')) {
-      //$this->undo(-2); // tokens surrounding the comment could form an other token
       return true;
     }
  
@@ -274,7 +259,7 @@ class MySqlLexer {
   }
   
   protected function consumeBitField() {
-    return $this->match('b\'[01]*\'', 'bit_field');
+    return $this->match('b\'[01]*\'', 'bit-field');
   }
  
   protected function consumeUnknown() {
@@ -282,7 +267,7 @@ class MySqlLexer {
   }
  
   protected function consumeVariable() {
-    if ($this->match("@@[0-9a-z_\.\$]+", "system_variable")) {
+    if ($this->match("@@[0-9a-z_\.\$]+", "system-variable")) {
       return true;
     }
     
@@ -290,12 +275,40 @@ class MySqlLexer {
     if (in_array($delimiter, array('"', "'"))) {
       $escapedDelimiter = preg_quote($delimiter);
       // http://stackoverflow.com/questions/5695240/php-regex-to-ignore-escaped-quotes-within-quotes
-      return $this->match('@' . $escapedDelimiter . '[^'.$escapedDelimiter.'\\\\]*(?:\\\\.[^'.$escapedDelimiter.'\\\\]*)*' . $escapedDelimiter, 'user_defined_variable');
+      return $this->match('@' . $escapedDelimiter . '[^'.$escapedDelimiter.'\\\\]*(?:\\\\.[^'.$escapedDelimiter.'\\\\]*)*' . $escapedDelimiter, 'user-defined-variable');
     } elseif ($delimiter == '`') {
-      return $this->match('@' . "`[^`]+`", 'user_defined_variable');
+      return $this->match('@' . "`[^`]+`", 'user-defined-variable');
     } else {
-      return $this->match('@[a-z0-9_\$\.]*', 'user_defined_variable');
+      return $this->match('@[a-z0-9_\$\.]*', 'user-defined-variable');
     }
+  }
+  
+  public function consumeCustomType() {
+    $word = null;
+    
+    // special chars only, for values like <, > and <=>
+    if (preg_match("/^([^a-z0-9\_\$\s\x0b\'\"]+?)"
+                 . "($|\/\*|\-\-($|[\s\x0b])|\#|[a-z0-9\_\$\s\x0b\"\'\`])/" // must be followed by end, comment or non operator character
+                 , $this->choppedValue, $matches)) {
+      $word = $matches[1];
+    }
+    
+    
+    // alpha numeric
+    if ($word === null && preg_match("/^([^\s\x0b\'\"]+)/", $this->choppedValue, $matches)) {
+      $word = $matches[0];
+    }
+    
+    if ($word !== null) {
+      foreach ($this->customTypes as $name => $values) {
+        if (in_array($word, $values)) {
+          $this->consume($word, $name);
+          return true;
+        }
+      }
+    }
+    
+    return false;
   }
   
   protected function write($str) {
@@ -306,42 +319,9 @@ class MySqlLexer {
   
   public function run($value) {
     $this->tokens = array();
-    $this->counts = array(
-      'unknown' => 0,
-      'hexadecimal' => 0,
-      'comment' => 0,
-      //'unexpected_comment_end' => 0,
-      'executed_comment_start' => 0,
-      'conditional_comment_start' => 0,
-      //'executed_comment_end' => 0,
-      //'conditional_comment_end' => 0,
-      'comment_end' => 0,
-      'whitespace' => 0,
-      'identifier' => 0,
-      'keyword' => 0,
-      'function' => 0,
-      'quoted_identifier' => 0,
-      'string' => 0,
-      'number' => 0,
-      'operator' => 0,
-      'comma' => 0,
-      'period' => 0,
-      'semicolon' => 0,
-      'left_parenthesis' => 0,
-      'right_parenthesis' => 0,
-      'logical_operator' => 0,
-      'modifier' => 0,
-      'bit_field' => 0,
-      'system_variable' => 0,
-      'user_defined_variable' => 0
-    );
-    $this->offset = 0;
     $this->value = strtolower($value);
     $this->next = substr($this->value, 0, 1);
     $this->choppedValue = $this->value;
-    $this->ccDepth = 0;
-  
-  
   
     $i = 0;
     while(strlen($this->choppedValue) > 0) {
@@ -353,8 +333,12 @@ class MySqlLexer {
         exit();
       }
      
-      $this->write("next: '{$this->next}', cc-depth: {$this->ccDepth}\n");
+      $this->write("next: '{$this->next}'}\n");
     
+      if ($this->consumeCustomType()) {
+        continue;
+      }
+      
       if (in_array($this->next, array('0', 'x'))) {
         if ($this->consumeHexadecimal()) {
           continue;
@@ -382,16 +366,16 @@ class MySqlLexer {
         $this->consumeQuotedIdentifier();
         continue;
       } elseif ($this->next == '(') {
-        $this->consume('(', 'left_parenthesis');
+        $this->consume('(', 'char-parenthesis-left');
         continue;
       } elseif ($this->next == ')') {
-        $this->consume(')', 'right_parenthesis');
+        $this->consume(')', 'char-parenthesis-right');
         continue;
       } elseif ($this->next == ',') {
-        $this->consume(',', 'comma');
+        $this->consume(',', 'char-comma');
         continue;
       } elseif ($this->next == ';') {
-        $this->consume(';', 'semicolon');
+        $this->consume(';', 'char-semicolon');
         continue;
       } elseif ($this->next == '@') {
         if ($this->consumeVariable()) {
@@ -405,20 +389,20 @@ class MySqlLexer {
         }
       }
    
-      if (in_array($this->next, array('a', '&', 'o', '|', 'x'))) {
+      /*if (in_array($this->next, array('a', '&', 'o', '|', 'x'))) {
         if ($this->consumeLogicalOperator()) {
           continue;
         }
-      }
+      }*/
       
-      if (in_array($this->next, array('&', '=', ':', '~', '|', '^', '/', '<', '>', '-', '%', '.', '!', '|', '+', '*'))) {
+      /*if (in_array($this->next, array('&', '=', ':', '~', '|', '^', '/', '<', '>', '-', '%', '.', '!', '|', '+', '*'))) {
         if ($this->consumeOperator()) {
           continue;
         }
-      }
+      }*/
       
       if ($this->next == '.') {
-        $this->consume('.', 'period');
+        $this->consume('.', 'char-period');
         continue;
       }
      

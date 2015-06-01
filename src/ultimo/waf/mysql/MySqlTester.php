@@ -9,106 +9,75 @@ class MySqlTester {
 
   public $debug = false;
   
-  public function test($value) {
-    $lex = new MySqlLexer();
-
-    $lex->run($value);
-    $result = $this->isValidMySql($lex);
-
-    if ($result) {
-      return true;
+  protected $lexer;
+  protected $aliases = array();
+  protected $rules;
+  
+  public function __construct(array $config) {
+    $customTokenTypes = array();
+    if (isset($config['custom-token-types'])) {
+      $customTokenTypes = $config['custom-token-types'];
     }
-
-    // injection could be within quoted parameter
-    // TODO: what if used quote is ', and value is "' or 1='1
-    //  firstStringDelimiter() needs to be fixed for this
-    $delimiter = $this->getFirstStringDelimiter($value);
-    if ($delimiter !== null) {
-      $value = $delimiter . $value . $delimiter;
-      
-      // TODO: reuse lexer
-      $lex = new MySqlLexer();
-
-      $lex->run($value);
-      $result = $this->isValidMySql($lex);
+    $this->lexer = new MySqlLexer($customTokenTypes);
+    
+    if (isset($config['aliases'])) {
+      $this->setAliases($config['aliases']);
     }
-
-    return $result;
+    
+    if (!isset($config['rules'])) {
+      throw new \Exception("No rules in config");
+    }
+    $this->setRules($config['rules']);
   }
   
-  protected function isValidMySql(MySqlLexer $lexer) {
-    // no injection if ony of the following applies *old*
-    // - one or more unknown tokens
-    // - two successive identifier tokens outside comments
-    // - none of the following tokens {keyword, operator, function}
-    // - none of the following tokens {identifier, quoted_identifier, string, number} 
-      
-    // This should work, but is also dangerous in early versions: it could create one or more backdoors
-    //if ($counts['unknown'] > 0) {
-    //  return false;
-    //}
-    
-    // ideas
-    // - not whitespace of any kind = false?
-    
-    // array('identifier', 'string', 'number', 'hexadecimal', 'quoted_identifier');
-    $pattern = array(
-      'identifier' => array(
-        'identifier' => array(
-          'identifier' => null,
-         ),
-        'number' => null
-      ),
-      'number' => array(
-        'number' => null,
-        'identifier' => array(
-          'identifier' => null,
-          //'number' => null // already defined [identifier -> number]
-        )
-      ),
-      'string' => array(
-        'identifier' => array(
-          'identifier' => null
-        )
-      ),
-      'operator' => array(
-        'operator' => null
-      )
-    );
-    
-    // hexadecimal => alphanum
+  protected function setAliases(array $aliases) {
+    $this->aliases = array();
+    foreach ($aliases as $name => $def) {
+      $this->aliases[$name] = str_replace(array_keys($this->aliases), array_values($this->aliases), $def);
+    }
+  }
+  
+  protected function setRules(array $rules) {
+    $this->rules = array();
+    $aliasesKeys = array_keys($this->aliases);
+    $aliasesDefs = array_values($this->aliases);
+    foreach ($rules as $rule) {
+      $rule['compiled_pattern'] = str_replace($aliasesKeys, $aliasesDefs, $rule['pattern']);
+      $this->rules[] = $rule;
+    }
+  }
+  
+  // TODO: optimize for performace by precompiling the subject and pattern
+  public function test($value) {
+    $bestResult = array('score' => 0, 'rules' => array());
     
     $matcher = new MySqlTokenMatcher();
-    $match = $matcher->match($pattern, $lexer->tokens);
-    if ($match !== null) {
-      $this->write("[pattern matched: ");
-      foreach ($match as $token) {
-        $this->write("'{$token['value']}' ({$token['type']}), ");
+    
+    foreach (array('') as $delimiter) { // , '"', "'"
+      $result = array('score' => 0, 'rules' => array());
+      
+      $tokens = $this->lexer->run($delimiter . $value . $delimiter);
+      
+      foreach ($this->rules as $rule) {
+        $isMatch = $matcher->match($rule['compiled_pattern'], $tokens);
+        
+        $negate = isset($rule['negate']) ? $rule['negate'] : false;
+        
+        //echo $rule['compiled_pattern'] . ' negate: ' . (($negate) ? 'true' : 'false') . ', match: ' . (($isMatch) ? 'true' : 'false') . "\n";
+        
+        if ($isMatch != $negate) {
+          unset($rule['compiled_pattern']);
+          $result['rules'][] = $rule;
+          $result['score'] += $rule['score'];
+        }
       }
-      $this->write("]");
-      return false;
+      
+      if ($result['score'] > $bestResult['score']) {
+        $bestResult = $result;
+      }
     }
-    
-    $counts = $lexer->counts;
-    
-    if ($counts['keyword'] == 0 && $counts['operator'] == 0 && $counts['function'] == 0 && $counts['logical_operator'] == 0) {
-      $this->write("[no keywords or operators]");
-      return false;
-    }
-    
-    if ($counts['identifier'] == 0 && $counts['quoted_identifier'] == 0 && $counts['string'] == 0 && $counts['number'] == 0 && $counts['hexadecimal'] == 0) {
-      $this->write("[no identifier of any kind]");
-      return false;
-    }
-    
-    return true;
-  }
-  
-  static public function getFirstStringDelimiter($value) {
-    if (preg_match('/(?<!\\\\)(\'|")/', $value, $matches)) {
-      return $matches[1];
-    }
-    return null;
+
+    return $bestResult;
   }
   
   protected function write($str) {

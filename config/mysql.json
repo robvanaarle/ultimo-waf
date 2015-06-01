@@ -1,0 +1,31 @@
+{
+  "name": "mysql",
+  "custom-token-types": {
+    "data-manipulation-statement": ["select", "update", "delete", "insert", "drop", "replace", "case"],
+    "clause": ["from", "where", "group", "order", "having"],
+    "flow-control-statement": ["case", "if", "iterate", "leave", "loop", "repeat", "return", "while"],
+    "function": ["concat", "concat_ws", "ascii", "hex", "unhex", "sleep", "md5", "benchmark"],
+    "logical-binary-operator": ["and", "or", "xor", "||", "&&"],
+    "logical-unary-operator": ["not", "!"],
+    "other-operator": ["~", ":=", "&", "|", "^", "/", "<<", "-", "+", ">>", "*", "like", "regexp", "not_regexp", "rlike", "sounds_like"],
+    "comparison-operator": ["<=>", ">=", ">", "<=", "<", "-", "%", "!=", "<>"]
+  },
+  "aliases": {
+    "%_%": "%comment%|%executed-comment-start|%conditional-comment-start%|%comment_end%|%whitespace%",
+    "%operand%": "%identifier%|%quoted_identifier%|%string%|%number%|%hexadecimal%|%bit-field%|%system-variable%|%user-defined-variable%",
+    "%operator%": "%function%|%logical-binary-operator%|%logical-unary-operator%|%other-operator%|%comparison-operator%"
+  },
+  "rules": [
+    {
+      "message": "Three successive identifiers",
+      "pattern": "/%identifier% %_% %identifier% %_% %identifier%/",
+      "score": -25
+    },
+    {
+      "message": "No operator followed by operand",
+      "pattern": "/%operator% (%_%|%char-parenthesis-left%)* %operand%)/",
+      "negate": true,
+      "score": -25
+    }
+  ]
+}

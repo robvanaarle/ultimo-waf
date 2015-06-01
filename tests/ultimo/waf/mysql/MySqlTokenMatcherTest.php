@@ -12,93 +12,101 @@ class MySqlTokenMatcherTest extends \PHPUnit_Framework_TestCase {
     $this->lexer = new MySqlLexer();
   }
   
+  public function testFirst() {
+    $lexer = new MySqlLexer(array('math' => array('-')));
+    $this->assertTrue($this->matcher->match(
+      '/(%math%)/',
+      $lexer->run('-')
+    ));
+  }
+  
   public function testMatcherAcceptsAlternation() {
     $this->assertTrue($this->matcher->match(
-      '/(%string|%number)/',
+      '/(%string%|%number%)/',
       $this->lexer->run('42')
     ));
   }
   
   public function testMatcherAcceptsAlternationWithPaths() {
     $this->assertTrue($this->matcher->match(
-      '/(%string %number|%number %string)/',
+      '/(%string% %number%|%number% %string%)/',
       $this->lexer->run('42"string"')
     ));
   }
   
   public function testMatcherAcceptsPlusQuantifier() {
     $this->assertTrue($this->matcher->match(
-      '/%string+/',
+      '/%string%+/',
       $this->lexer->run('"string""string"')
     ));
   }
   
   public function testMatcherAcceptsStarQuantifier() {
     $this->assertTrue($this->matcher->match(
-      '/%string* %whitespace %number/',
+      '/%string%* %whitespace% %number%/',
       $this->lexer->run(' 42')
     ));
   }
   
   public function testMatcherAcceptsQuantifier() {
     $this->assertTrue($this->matcher->match(
-      '/%string{2}/',
+      '/%string%{2}/',
       $this->lexer->run('"string 1""string 2"')
     ));
   }
   
   public function testMatcherAcceptsCaretAnchor() {
     $this->assertTrue($this->matcher->match(
-      '/^%number/',
+      '/^%number%/',
       $this->lexer->run('42')
     ));
   }
   
   public function testMatcherAcceptsDollarAnchor() {
     $this->assertTrue($this->matcher->match(
-      '/%number$/',
+      '/%number%$/',
       $this->lexer->run('42')
     ));
   }
   
   public function testMatcherMatchesWithinExecutedComment() {
     $this->assertTrue($this->matcher->match(
-      '/%identifier %whitespace* %number/',
+      '/%identifier% %whitespace%* %number%/',
       $this->lexer->run('a /*! 1 */ c')
     ));
   }
   
   public function testMatcherIgnoresPoundComment() {
     $this->assertTrue($this->matcher->match(
-      '/%number %whitespace* %number/',
+      '/%number% %whitespace%* %number%/',
       $this->lexer->run("42 # foo\n42")
     ));
   }
   
   public function testMatcherIgnoresMinMinComment() {
     $this->assertTrue($this->matcher->match(
-      '/%number %whitespace* %number/',
+      '/%number% %whitespace%* %number%/',
       $this->lexer->run("42 -- foo\n42")
     ));
   }
   
   public function testMatcherIgnoresComment() {
     $this->assertTrue($this->matcher->match(
-      '/%number %whitespace* %number/',
+      '/%number% %whitespace%* %number%/',
       $this->lexer->run("42 /* foo */ 42")
     ));
   }
   
   public function testMatcherMatchesWithinConditionalComment() {
     $this->assertTrue($this->matcher->match(
-      '/%identifier %whitespace* %number/',
+      '/%identifier% %whitespace%* %number%/',
       $this->lexer->run('a /*!0 1 */ c')
     ));
   }
   
   public function testMatcherIgnoresConditionalComment() {
     $this->assertTrue($this->matcher->match(
-      '/%identifier %whitespace* %identifier/',
+      '/%identifier% %whitespace%* %identifier%/',
       $this->lexer->run('a /*!0 1 */ c'),
       true
     ));
@@ -107,7 +115,7 @@ class MySqlTokenMatcherTest extends \PHPUnit_Framework_TestCase {
   public function testMatcherMatchesNestedConditionalCommentAsAWhole() {
     // nested comments are ended with one ending comment
     $this->assertFalse($this->matcher->match(
-      '/%identifier %whitespace* %number %whitespace* %identifier/',
+      '/%identifier% %whitespace%* %number% %whitespace%* %identifier%/',
       $this->lexer->run('a /*!0 2 /*!1 "s" */ c'),
       true
     ));
@@ -115,7 +123,7 @@ class MySqlTokenMatcherTest extends \PHPUnit_Framework_TestCase {
   
    public function testMatcherUnmatchesTokenTypeNotInPattern() {
     $this->assertFalse($this->matcher->match(
-      '/%string/',
+      '/%string%/',
       $this->lexer->run('42')
     ));
   }
