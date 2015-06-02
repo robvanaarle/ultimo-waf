@@ -58,6 +58,14 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     );
   }
   
+  public function providerNonAlphaNumericCharacters() {
+    return array(
+      array('('),
+      array(')'),
+      array(',')
+    );
+  }
+  
   /*****************************************************************************
    * Number
    ****************************************************************************/
@@ -267,6 +275,17 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     $this->assertContains(
       array('type' => 'math-operator', 'value' => "/"),
       $lexer->run("//*")
+    );
+  }
+  
+  /**
+   * @dataProvider providerNonAlphaNumericCharacters
+   */
+  public function testCustomTypeWithAlphaNumericValueCanBeFollowedByNonAlphaNumericCharacter($nonAlphaNumChar) {
+    $lexer = new MySqlLexer(array('keyword' => array('select', 'from')));
+    $this->assertContains(
+      array('type' => 'keyword', 'value' => "select"),
+      $lexer->run("select" . $nonAlphaNumChar)
     );
   }
   

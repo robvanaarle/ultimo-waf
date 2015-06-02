@@ -8,24 +8,31 @@
     "logical-binary-operator": ["and", "or", "xor", "||", "&&"],
     "logical-unary-operator": ["not", "!"],
     "other-operator": ["~", ":=", "&", "|", "^", "/", "<<", "-", "+", ">>", "*", "like", "regexp", "not_regexp", "rlike", "sounds_like"],
-    "comparison-operator": ["<=>", ">=", ">", "<=", "<", "-", "%", "!=", "<>"]
+    "comparison-operator": ["<=>", ">=", ">", "<=", "<", "-", "%", "!=", "<>", "="]
   },
   "aliases": {
-    "%_%": "%comment%|%executed-comment-start|%conditional-comment-start%|%comment_end%|%whitespace%",
+    "%_%": "%comment%|%executed-comment-start%|%conditional-comment-start%|%comment-end%|%whitespace%",
     "%operand%": "%identifier%|%quoted_identifier%|%string%|%number%|%hexadecimal%|%bit-field%|%system-variable%|%user-defined-variable%",
     "%operator%": "%function%|%logical-binary-operator%|%logical-unary-operator%|%other-operator%|%comparison-operator%"
   },
+  "threshold-score": 1,
   "rules": [
     {
       "message": "Three successive identifiers",
-      "pattern": "/%identifier% %_% %identifier% %_% %identifier%/",
-      "score": -25
+      "pattern": "/%identifier% %whitespace%* %identifier% %whitespace%* %identifier%/",
+      "score": -20,
+      "explode": "match-all",
+      "quoted": "match-all"
     },
     {
-      "message": "No operator followed by operand",
-      "pattern": "/%operator% (%_%|%char-parenthesis-left%)* %operand%)/",
-      "negate": true,
-      "score": -25
+      "message": "Operator followed by operand",
+      "pattern": "/%operator% (%_%|%char-parenthesis-left%)* %operand%/",
+      "explode": "match-any",
+      "quoted": "match-any",
+      "score": 4
     }
+  ],
+  "parked-rules": [
+    
   ]
 }

@@ -12,14 +12,6 @@ class MySqlTokenMatcherTest extends \PHPUnit_Framework_TestCase {
     $this->lexer = new MySqlLexer();
   }
   
-  public function testFirst() {
-    $lexer = new MySqlLexer(array('math' => array('-')));
-    $this->assertTrue($this->matcher->match(
-      '/(%math%)/',
-      $lexer->run('-')
-    ));
-  }
-  
   public function testMatcherAcceptsAlternation() {
     $this->assertTrue($this->matcher->match(
       '/(%string%|%number%)/',
@@ -69,45 +61,32 @@ class MySqlTokenMatcherTest extends \PHPUnit_Framework_TestCase {
     ));
   }
   
-  public function testMatcherMatchesWithinExecutedComment() {
+  public function testMatcherMatchesExecutedCommentContent() {
     $this->assertTrue($this->matcher->match(
-      '/%identifier% %whitespace%* %number%/',
-      $this->lexer->run('a /*! 1 */ c')
+      '/%identifier% %executed-comment-start% %identifier%/',
+      $this->lexer->run('a/*!b*/42')
     ));
   }
   
-  public function testMatcherIgnoresPoundComment() {
+  public function testMatcherMatchesConditionalCommentContent() {
     $this->assertTrue($this->matcher->match(
-      '/%number% %whitespace%* %number%/',
-      $this->lexer->run("42 # foo\n42")
+      '/%identifier% %conditional-comment-start% %identifier%/',
+      $this->lexer->run('a/*!0b*/42')
     ));
   }
   
-  public function testMatcherIgnoresMinMinComment() {
+  public function testMatcherMatchesConditionalCommentContentInExplodeMode() {
     $this->assertTrue($this->matcher->match(
-      '/%number% %whitespace%* %number%/',
-      $this->lexer->run("42 -- foo\n42")
+      '/%identifier% %conditional-comment-start% %identifier% %comment-end%/',
+      $this->lexer->run('a/*!0b*/42'),
+      true
     ));
   }
   
-  public function testMatcherIgnoresComment() {
+  public function testMatcherIgnoresConditionalCommentContentInExplodeMode() {
     $this->assertTrue($this->matcher->match(
-      '/%number% %whitespace%* %number%/',
-      $this->lexer->run("42 /* foo */ 42")
-    ));
-  }
-  
-  public function testMatcherMatchesWithinConditionalComment() {
-    $this->assertTrue($this->matcher->match(
-      '/%identifier% %whitespace%* %number%/',
-      $this->lexer->run('a /*!0 1 */ c')
-    ));
-  }
-  
-  public function testMatcherIgnoresConditionalComment() {
-    $this->assertTrue($this->matcher->match(
-      '/%identifier% %whitespace%* %identifier%/',
-      $this->lexer->run('a /*!0 1 */ c'),
+      '/%identifier% %conditional-comment-start% %comment-end% %number%/',
+      $this->lexer->run('a/*!0b*/42'),
       true
     ));
   }
@@ -121,10 +100,17 @@ class MySqlTokenMatcherTest extends \PHPUnit_Framework_TestCase {
     ));
   }
   
-   public function testMatcherUnmatchesTokenTypeNotInPattern() {
+  public function testMatcherUnmatchesTokenTypeNotInPattern() {
     $this->assertFalse($this->matcher->match(
       '/%string%/',
       $this->lexer->run('42')
+    ));
+  }
+  
+  public function testMatcherAcceptsExpressionTokens() {
+    $this->assertTrue($this->matcher->match(
+      '/%identifier% (%[^\%]+?%)* %identifier%/',
+      $this->lexer->run('a 1 c')
     ));
   }
 }

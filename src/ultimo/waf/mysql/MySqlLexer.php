@@ -16,42 +16,19 @@ class MySqlLexer {
   protected $next;
   protected $choppedValue; // rename to remainingValue?
   protected $customTypes;
-  
-  // conditional comment depth
-  //protected $commentStack = array();
  
   // http://savage.net.au/SQL/sql-2003-2.bnf.html#delimited%20identifier
-  // [x] single quoted string
-  // [x] double quoted string
-  // [x] backticked string
-  // [x] number
-  // [x] keyword
-  // [x] parenthesis
-  // [\] operator
-  // [\] comparison (operator?)
-  // [-] function
-  // [\] comment
-  //     /*! syntax
-  // [-] list (WHERE IN (x, y, z))
-  // [x] identifier
-  // [x] unknown
-  // overig:
-  //  , := extra weight if between identifiers, numbers, strings, ...?
-  //  ;
-  //  * := operator?
-  // [x] binary b'1001'
-  // [x] octal or others?
-  // [x] user-defined variables @
-  // [x] @@ system variables
- 
-  // configurable grammar
-  // add scores/weights to each type of token
-  //   right_parenthesis >= left_parenthesis -> +42
-  // add scores/weights by surrounding type of tokens
-  //  eg a comma between identifier, string or number weighs more than a comma between 'invalid' tokens
   
   public function __construct(array $customTypes=array()) {
-    $this->customTypes = $customTypes;
+    $this->setCustomTypes($customTypes);
+  }
+  
+  public function setCustomTypes(array $customTypes) {
+    foreach ($customTypes as $name => $values) {
+      foreach ($values as $value) {
+        $this->customTypes[$value] = $name;
+      }
+    }
   }
   
   protected function consume($tokenValue, $type) {
@@ -85,14 +62,6 @@ class MySqlLexer {
   }
  
   protected function consumeNumber() {
-    // FIXED: number may not be followed by a alpha char(?), e.g. 9gag should
-    // not consume 9 as number
-    //  this reduces false positives
-    
-    // test cases: 1 12 12.3 12.34 .0
-    //             1.1.1 11a 11.11a
-    
-    
     if ($this->match(
             // 1 or more digits, decimal seperator followed 1 or more digits, 1
             // or more digits followed by decimal seperator followed by 1 or
@@ -122,26 +91,7 @@ class MySqlLexer {
   protected function consumeQuotedIdentifier() {
     return $this->match('`[^`]+`', 'quoted_identifier');
   }
- 
-  protected function consumeLogicalOperator() {
-    //$logicalOperators = array('and', '&&', 'or', '||', 'xor');
-    if ($this->match("(\&\&|\|\|)", 'logical_operator', 1)) {
-      return true;
-    }
-    
-    return $this->match("(and|or|xor)($|[^a-z0-9_])", 'logical_operator', 1);
-  }
   
-  protected function consumeOperator() {
-    // array('&&', '=', ':=', '&', '~', '|', '^', '/', '<=>', '>=', '>', '<<', '<=', '<', '-', '%', '...', '!=', '<>', '!', '||', '+', '>>', '*')
-
-    // also contains the logical operators
-    // TODO: remove 'followed by non-operator character', as this is about syntax, not tokens
-    return $this->match(
-              "(&&|\=|\:\=|&|~|\||\^|\/|\<\=\>|\>\=|\>|\<\<|\<\=|\<|\-|%|\.\.\.|\!\=|\<\>|\!|\|\||\+|\>\>|\*)" // the valid operators
-            . "($|\/\*|\-\-($|[\s\x0b])|[^&|\=|\:|~|\||\^|\/|\<|\>|\-|%|\.|\!|\||\+|\*])" // must be followed by end, comment or non operator character
-            , 'operator', 1);
-  }
  
   protected function consumeWhitespace() {
     return $this->match("[\s\x0b]+", 'whitespace');
@@ -152,68 +102,6 @@ class MySqlLexer {
       $word = $matches[0];
       
       $this->consume($word, 'identifier');
-      return true;
-   
-      // TODO: add more keywords?
-      // TODO: consume names of popular functions
-      // TODO: remove keywords, as it's not a token: they consist of operators, functions and other types
-     
-      // http://dev.mysql.com/doc/mysqld-version-reference/en/mysqld-version-reference-reservedwords-5-7.html
-      // only dangerous keywords are checked against, to reduce false positives
-      //$keywords = array('select', 'union', 'update', 'delete', 'insert', 'table', 'from', 'drop', 'group', 'null', 'and', 'or');
-      
-      // TODO: store this static
-      // contains logical operators
-      $keywords = array(
-        'accessible', 'add', 'all', 'alter', 'analyze', 'and',
-        'as', 'asc', 'asensitive', 'before', 'between', 'bigint', 'binary',
-        'blob', 'both', 'by', 'call', 'cascade', 'case', 'change', 'char',
-        'character', 'check', 'collate', 'column', 'condition', 'constraint',
-        'continue', 'convert', 'create', 'cross', 'current_date', 'current_time',
-        'current_timestamp', 'current_user', 'cursor', 'database', 'databases',
-        'day_hour', 'day_microsecond', 'day_minute', 'day_second', 'dec',
-        'decimal', 'declare', 'default', 'delayed', 'delete', 'desc', 'describe',
-        'deterministic', 'distinct', 'distinctrow', 'div', 'double', 'drop',
-        'dual', 'each', 'else', 'elseif', 'enclosed', 'escaped', 'exists', 'exit',
-        'explain', 'false', 'fetch', 'float', 'float4', 'float8', 'for', 'force',
-        'foreign', 'from', 'fulltext', 'generated', 'get', 'grant', 'group',
-        'having', 'high_priority', 'hour_microsecond', 'hour_minute', 'hour_second',
-        'if', 'ignore', 'in', 'index', 'infile', 'inner', 'inout', 'insensitive',
-        'insert', 'int', 'int1', 'int2', 'int3', 'int4', 'int8', 'integer',
-        'interval', 'into', 'io_after_gtids', 'io_before_gtids', 'is', 'iterate',
-        'join', 'key', 'keys', 'kill', 'leading', 'leave', 'left', 'like',
-        'limit', 'linear', 'lines', 'load', 'localtime', 'localtimestamp', 'lock',
-        'long', 'longblob', 'longtext', 'loop', 'low_priority', 'master_bind',
-        'master_ssl_verify_server_cert', 'match', 'maxvalue', 'mediumblob',
-        'mediumint', 'mediumtext', 'middleint', 'minute_microsecond', 'minute_second',
-        'mod', 'modifies', 'natural', 'nonblocking', 'not', 'no_write_to_binlog',
-        'null', 'numeric', 'on', 'optimize', 'optimizer_costs', 'option',
-        'optionally', 'or', 'order', 'out', 'outer', 'outfile', 'parse_gcol_expr',
-        'partition', 'precision', 'primary', 'procedure', 'purge', 'range', 'read',
-        'reads', 'read_write', 'real', 'references', 'regexp', 'release', 'rename',
-        'repeat', 'replace', 'require', 'resignal', 'restrict', 'return', 'revoke',
-        'right', 'rlike', 'schema', 'schemas', 'second_microsecond', 'select',
-        'sensitive', 'separator', 'set', 'show', 'signal', 'smallint', 'spatial',
-        'specific', 'sql', 'sqlexception', 'sqlstate', 'sqlwarning', 'sql_big_result',
-        'sql_calc_found_rows', 'sql_small_result', 'ssl', 'starting', 'stored',
-        'straight_join', 'table', 'terminated', 'then', 'tinyblob', 'tinyint',
-        'tinytext', 'to', 'trailing', 'trigger', 'true', 'undo', 'union', 'unique',
-        'unlock', 'unsigned', 'update', 'usage', 'use', 'using', 'utc_date',
-        'utc_time', 'utc_timestamp', 'values', 'varbinary', 'varchar', 'varcharacter',
-        'varying', 'virtual', 'when', 'where', 'while', 'with', 'write','xor',
-        'year_month', 'zerofill'
-      );
-      
-      if (in_array($word, $keywords)) {
-        $this->consume($word, 'keyword');
-      } elseif (in_array($word, array('concat', 'concat_ws', 'ascii', 'hex', 'unhex', 'sleep', 'md5', 'benchmark', 'not_regexp'))) {
-        // to reduce false positives, only functions popular for MySQL injection are matched
-        $this->consume($word, 'function');
-      } elseif (in_array($word, array('boolean'))) {
-        $this->consume($word, 'modifier');
-      } else {
-        $this->consume($word, 'identifier');
-      }
       return true;
     }
  
@@ -295,16 +183,14 @@ class MySqlLexer {
     
     
     // alpha numeric
-    if ($word === null && preg_match("/^([^\s\x0b\'\"]+)/", $this->choppedValue, $matches)) {
+    if ($word === null && preg_match("/^[a-z0-9_\$]*[a-z_\$]+[a-z0-9_\$]*/", $this->choppedValue, $matches)) {
       $word = $matches[0];
     }
     
     if ($word !== null) {
-      foreach ($this->customTypes as $name => $values) {
-        if (in_array($word, $values)) {
-          $this->consume($word, $name);
-          return true;
-        }
+      if (isset($this->customTypes[$word])) {
+        $this->consume($word, $this->customTypes[$word]);
+        return true;
       }
     }
     
@@ -328,8 +214,9 @@ class MySqlLexer {
       $i++;
       
       // temporary failsafe
-      if ($i > 100) {
-        $this->write("ERROR: many steps, error in lexer?");
+      if ($i > 1000) {
+        $this->write("ERROR: too many steps, error in lexer?");
+        echo "ERROR: too many steps, error in lexer?";
         exit();
       }
      
@@ -377,6 +264,9 @@ class MySqlLexer {
       } elseif ($this->next == ';') {
         $this->consume(';', 'char-semicolon');
         continue;
+      } elseif ($this->next == '.') {
+        $this->consume('.', 'char-period');
+        continue;
       } elseif ($this->next == '@') {
         if ($this->consumeVariable()) {
           continue;
@@ -388,24 +278,7 @@ class MySqlLexer {
           continue;
         }
       }
-   
-      /*if (in_array($this->next, array('a', '&', 'o', '|', 'x'))) {
-        if ($this->consumeLogicalOperator()) {
-          continue;
-        }
-      }*/
-      
-      /*if (in_array($this->next, array('&', '=', ':', '~', '|', '^', '/', '<', '>', '-', '%', '.', '!', '|', '+', '*'))) {
-        if ($this->consumeOperator()) {
-          continue;
-        }
-      }*/
-      
-      if ($this->next == '.') {
-        $this->consume('.', 'char-period');
-        continue;
-      }
-     
+
       if ($this->consumeIdentifier()) {
         continue;
       }

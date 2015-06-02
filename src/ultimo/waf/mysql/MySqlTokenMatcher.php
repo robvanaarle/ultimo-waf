@@ -27,16 +27,22 @@ class MySqlTokenMatcher {
           // found the end of a conditional comment
           
           // part before the comment is always executed
-          $beforeCommentSubject = $this->tokensToSubject($tokens, $offset, $conditionalCommentStartIndex-$offset+1);
+          // append conditional-comment-start, as this acts as whitespace
+          $beforeAndStartCommentSubject = $this->tokensToSubject($tokens, $offset, $conditionalCommentStartIndex-$offset+1);
           
           // contents of conditional comment may or may not be executed, these are the two paths
-          $conditionalCommentSubject = $this->tokensToSubject($tokens, $conditionalCommentStartIndex, $index-$conditionalCommentStartIndex+1);
+          $commentContentSubject = $this->tokensToSubject($tokens, $conditionalCommentStartIndex+1, $index-$conditionalCommentStartIndex-1);
+          
+          $commentEndSubject = $this->tokensToSubject($tokens, $index, 1);
           
           // call this function recursively, and prepend the two paths to all paths from the recursive call
           $recursivePaths = $this->explodeConditionalCommentPaths($tokens, $index+1);
           foreach ($recursivePaths as $recursivePath) {
-            $tokenPaths[] = $beforeCommentSubject . $recursivePath;
-            $tokenPaths[] = $beforeCommentSubject . $conditionalCommentSubject . $recursivePath;
+            // create a path without comment content
+            $tokenPaths[] = $beforeAndStartCommentSubject . $commentEndSubject . $recursivePath;
+            
+            // create a path with comment content
+            $tokenPaths[] = $beforeAndStartCommentSubject . $commentContentSubject . $commentEndSubject . $recursivePath;
           }
           
           return $tokenPaths;
@@ -52,7 +58,7 @@ class MySqlTokenMatcher {
   }
   
   protected function tokensToSubject(array $tokens, $offset=0, $length=-1) {
-    $ignoredTypes = array('comment', 'executed-comment-start', 'conditional-comment-start', 'comment-end');
+    //$ignoredTypes = array('comment', 'executed-comment-start', 'conditional-comment-start', 'comment-end');
     
     if ($length == -1) {
       $end = count($tokens);
@@ -64,9 +70,9 @@ class MySqlTokenMatcher {
     for ($index = $offset; $index < $end; $index++) {
       $token = $tokens[$index];
       
-      if (in_array($token['type'], $ignoredTypes)) {
-        continue;
-      }
+      //if (in_array($token['type'], $ignoredTypes)) {
+      //  continue;
+      //}
       $tokenTypes[] = '%' . $token['type'] . '%';
     }
     return implode(' ', $tokenTypes);
@@ -83,7 +89,13 @@ class MySqlTokenMatcher {
   
   public function compilePattern($tokenPattern) {
     // convert token pattern to regex pattern: remove whitespace and add a single space before each token type
-    return preg_replace('/%[a-z0-9\.\_]+%/', '( \\\\$0)', str_replace(' ', '', $tokenPattern));
+    
+    return preg_replace('/%[^%\\\\]*(?:\\\\.[^%\\\\]*)*%/', '( $0)', str_replace(' ', '', $tokenPattern));
+    //return preg_replace('/%[^%]+?%/', '( $0)', str_replace(' ', '', $tokenPattern));
+  }
+  
+  public function matchCompiled($compiledPattern, $compiledSubject) {
+    return preg_match($compiledPattern, $compiledSubject);
   }
   
   //TODO: 
@@ -95,6 +107,8 @@ class MySqlTokenMatcher {
     $subjects = $this->compileSubject($tokens, $explodeCCPaths);
     
     $pattern = $this->compilePattern($tokenPattern);
+    
+    //print_r($subjects); echo $pattern . "\n";
     
     foreach ($subjects as $subject) {
       if (preg_match($pattern, $subject)) {

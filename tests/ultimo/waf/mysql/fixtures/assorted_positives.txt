@@ -1,0 +1,4 @@
+1' or 1=1-- textbook examples
+1' or 1='1
+1" or 1=1--
+1" or 1="1
