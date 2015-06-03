@@ -1,3 +1,5 @@
 1' or 1=1 --  /*!70000 More than three successive identifiers in this not executed conditional comment as an attempt to get bonus points */
 1' or ++--1=++--1 -- /* Attempt to bypass penalty rules that match on comparison of numbers  */
 + --++1 or 1=1 -- /* Attempt to bypass penalty rules that check if a variable starts with a number */
+1'; SELECT BINARY column ascolumnname FROM table -- /* Attempt to get 3 identifier bonus => added BINARY as modifier */
+1' /* Unterminated comment attack */ /*!0 or 1='1

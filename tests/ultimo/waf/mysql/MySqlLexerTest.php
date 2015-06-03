@@ -238,7 +238,39 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     );
   }
   
-  public function testMinMinCommentIsNotACustomType() {
+  public function testMinusPlusIsMatchedAsTwoTokens() {
+    $lexer = new MySqlLexer(array('math-operator' => array('+', '-', '<', '<<')));
+    $this->assertEquals(array(
+        array('type' => 'math-operator', 'value' => "-"),
+        array('type' => 'math-operator', 'value' => "+"),
+      ),
+      $lexer->run("-+")
+    );
+  }
+  
+  public function testMinusMinusWithoutFollowingWhitespaceIsMatchedAsTwoTokensAndNotAsComment() {
+    $lexer = new MySqlLexer(array('math-operator' => array('-')));
+    $this->assertEquals(array(
+        array('type' => 'math-operator', 'value' => "-"),
+        array('type' => 'math-operator', 'value' => "-"),
+        array('type' => 'number', 'value' => "42"),
+      ),
+      $lexer->run("--42")
+    );
+  }
+  
+  public function testMinusFollowedByMinusMinusCommentIsMatched() {
+    $lexer = new MySqlLexer(array('math-operator' => array('-')));
+    $this->assertEquals(array(
+        array('type' => 'math-operator', 'value' => "-"),
+        array('type' => 'comment', 'value' => "-- foo"),
+        array('type' => 'whitespace', 'value' => "\n"),
+      ),
+      $lexer->run("--- foo\n")
+    );
+  }
+  
+  public function testMinusMinusCommentIsNotACustomType() {
     $lexer = new MySqlLexer(array('math-operator' => array('-')));
     $this->assertNotContains(
       array('type' => 'math-operator', 'value' => "-"),
@@ -254,7 +286,7 @@ class MySqlLexerTest extends \PHPUnit_Framework_TestCase {
     );
   }
   
-  public function testCustomTypeWithNonAlphaNumericValueCanBeFollowedByMinMinComment() {
+  public function testCustomTypeWithNonAlphaNumericValueCanBeFollowedByMinusMinusComment() {
     $lexer = new MySqlLexer(array('math-operator' => array('/')));
     $this->assertContains(
       array('type' => 'math-operator', 'value' => "/"),

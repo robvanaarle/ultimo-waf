@@ -15,7 +15,7 @@ class MySqlLexer {
   protected $value;
   protected $next;
   protected $choppedValue; // rename to remainingValue?
-  protected $customTypes;
+  protected $customTypes = array();
  
   // http://savage.net.au/SQL/sql-2003-2.bnf.html#delimited%20identifier
   
@@ -79,7 +79,7 @@ class MySqlLexer {
 
   protected function consumeString($delimiter="\"") {
 
-    $escapedDelimiter = preg_quote($delimiter);
+    $escapedDelimiter = preg_quote($delimiter, '/');
     // http://stackoverflow.com/questions/5695240/php-regex-to-ignore-escaped-quotes-within-quotes
     if ($this->match($escapedDelimiter . '[^'.$escapedDelimiter.'\\\\]*(?:\\\\.[^'.$escapedDelimiter.'\\\\]*)*' . $escapedDelimiter, 'string')) {
       return true;
@@ -151,7 +151,7 @@ class MySqlLexer {
   }
  
   protected function consumeUnknown() {
-    $this->match("(.*?)(?:$|,|\s|\x0b)", 'unknown', 1);
+    $this->match("(.+?)($|,|;|\(|\)|\s|\x0b)", 'unknown', 1);
   }
  
   protected function consumeVariable() {
@@ -161,7 +161,7 @@ class MySqlLexer {
     
     $delimiter = substr($this->choppedValue, 1, 1);
     if (in_array($delimiter, array('"', "'"))) {
-      $escapedDelimiter = preg_quote($delimiter);
+      $escapedDelimiter = preg_quote($delimiter, '/');
       // http://stackoverflow.com/questions/5695240/php-regex-to-ignore-escaped-quotes-within-quotes
       return $this->match('@' . $escapedDelimiter . '[^'.$escapedDelimiter.'\\\\]*(?:\\\\.[^'.$escapedDelimiter.'\\\\]*)*' . $escapedDelimiter, 'user-defined-variable');
     } elseif ($delimiter == '`') {
@@ -171,7 +171,70 @@ class MySqlLexer {
     }
   }
   
+  // TODO: make this much more efficient by pre sorting the custom types
   public function consumeCustomType() {
+    $word = null;
+      
+    $alphaNumericTokens = array();
+    $specialTokens = array();
+    foreach ($this->customTypes as $token => $type) {
+      if (preg_match('/^[a-z0-9_\$]+/', $token)) {
+        $alphaNumericTokens[$token] = $type;
+      } else {
+        $specialTokens[$token] = $type;
+      }
+    }
+
+    ksort($specialTokens);
+    $specialTokens = $specialTokens;
+    
+    // special tokens
+    if (count($specialTokens) > 0) {
+      $quotedTokens = array();
+      foreach ($specialTokens as $token => $type) {
+        $quotedTokens[] = preg_quote($token, '/');
+      }
+      
+      // add comments tokens
+      $quotedTokens[] = '\/\*';
+      $quotedTokens[] = '\-\-($|[\s\x0b])';
+      $quotedTokens[] = '#';
+      
+      
+      // array was sorted from short to long tokens, matching should the the other way around. Comment tokens are in front now, as they are more important than other tokens
+      $quotedTokens = array_reverse($quotedTokens);
+      
+      $pattern = '/^(' . implode('|', $quotedTokens) . ')/';
+      
+      //echo $pattern . "\n";
+      //echo $this->choppedValue . "\n";
+      
+      if (preg_match($pattern, $this->choppedValue, $matches)) {
+        $token = $matches[0];
+        //echo "Match: {$token}\n";
+        if (!isset($specialTokens[$token])) {
+          // comment token
+          return false;
+        }
+        $this->consume($token, $specialTokens[$token]);
+        return true;
+      }
+    }
+    
+    
+    // alpha numeric tokens
+    if (preg_match("/^[a-z0-9_\$]*[a-z_\$]+[a-z0-9_\$]*/", $this->choppedValue, $matches)) {
+      $token = $matches[0];
+      if (isset($alphaNumericTokens[$token])) {
+        $this->consume($token, $alphaNumericTokens[$token]);
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  public function consumeCustomTypeOld() {
     $word = null;
     
     // special chars only, for values like <, > and <=>
@@ -181,8 +244,7 @@ class MySqlLexer {
       $word = $matches[1];
     }
     
-    
-    // alpha numeric
+    // alpha numeric tokens
     if ($word === null && preg_match("/^[a-z0-9_\$]*[a-z_\$]+[a-z0-9_\$]*/", $this->choppedValue, $matches)) {
       $word = $matches[0];
     }
@@ -216,11 +278,11 @@ class MySqlLexer {
       // temporary failsafe
       if ($i > 1000) {
         $this->write("ERROR: too many steps, error in lexer?");
-        echo "ERROR: too many steps, error in lexer?";
+        echo "ERROR: too many steps, error in lexer? ($value)";
         exit();
       }
      
-      $this->write("next: '{$this->next}'}\n");
+      $this->write("next: '{$this->next}'\n");
     
       if ($this->consumeCustomType()) {
         continue;
@@ -252,7 +314,7 @@ class MySqlLexer {
       } elseif ($this->next == '`') {
         $this->consumeQuotedIdentifier();
         continue;
-      } elseif ($this->next == '(') {
+      /*} elseif ($this->next == '(') {
         $this->consume('(', 'char-parenthesis-left');
         continue;
       } elseif ($this->next == ')') {
@@ -266,7 +328,7 @@ class MySqlLexer {
         continue;
       } elseif ($this->next == '.') {
         $this->consume('.', 'char-period');
-        continue;
+        continue;*/
       } elseif ($this->next == '@') {
         if ($this->consumeVariable()) {
           continue;

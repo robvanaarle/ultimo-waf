@@ -1,6 +1,7 @@
 {
   "name": "mysql",
   "custom-token-types": {
+    "char": ["(", ")", ",", "."],
     "data-manipulation-statement": ["select", "update", "delete", "insert", "drop", "replace", "case"],
     "clause": ["from", "where", "group", "order", "having"],
     "flow-control-statement": ["case", "if", "iterate", "leave", "loop", "repeat", "return", "while"],
@@ -8,11 +9,14 @@
     "logical-binary-operator": ["and", "or", "xor", "||", "&&"],
     "logical-unary-operator": ["not", "!"],
     "other-operator": ["~", ":=", "&", "|", "^", "/", "<<", "-", "+", ">>", "*", "like", "regexp", "not_regexp", "rlike", "sounds_like"],
-    "comparison-operator": ["<=>", ">=", ">", "<=", "<", "-", "%", "!=", "<>", "="]
+    "comparison-operator": ["<=>", ">=", ">", "<=", "<", "%", "!=", "<>", "="],
+    "column-modifier": ["binary"],
+    "value": ["true", "false", "null"],
+    "char-semicolon": [";"]
   },
   "aliases": {
     "%_%": "%comment%|%executed-comment-start%|%conditional-comment-start%|%comment-end%|%whitespace%",
-    "%operand%": "%identifier%|%quoted_identifier%|%string%|%number%|%hexadecimal%|%bit-field%|%system-variable%|%user-defined-variable%",
+    "%operand%": "%value%|%identifier%|%quoted_identifier%|%string%|%number%|%hexadecimal%|%bit-field%|%system-variable%|%user-defined-variable%",
     "%operator%": "%function%|%logical-binary-operator%|%logical-unary-operator%|%other-operator%|%comparison-operator%"
   },
   "threshold-score": 1,
@@ -30,9 +34,16 @@
       "explode": "match-any",
       "quoted": "match-any",
       "score": 4
+    },
+    {
+      "message": "Second query after closing current query",
+      "pattern": "/%operand% (%_%|%char-parenthesis-right%)* %char-semicolon% %_% %data-manipulation-statement% /",
+      "explode": "match-any",
+      "quoted": "match-any",
+      "score": 4
     }
-  ],
-  "parked-rules": [
     
+  ],
+  "-debug-disabled-rules": [
   ]
 }

@@ -67,7 +67,6 @@ class MySqlTester {
       }
       
       
-      
       $explode = isset($rule['explode']) ? $rule['explode'] : "no";
       $negate = isset($rule['negate']) ? $rule['negate'] : false;
       
@@ -75,12 +74,18 @@ class MySqlTester {
       $quotedAnyMatched = false;
       
       foreach ($delimiters as $delimiter) {
+        // TODO: optimize, encapsulating in delimiters is of no use if the value does not contiain that delimier
         $tokens = $this->lexer->run($delimiter . $value . $delimiter);
+        
+        // as string delimiters are placed, it's possible that the value becomes one string, which is of no interest to the rule
+        if ($delimiter != '' && count($tokens) == 1 && $tokens[0]['type'] == 'string') {
+          continue;
+        }
         
         $subjects = $matcher->compileSubject($tokens, $explode != "no");
         $pattern = $matcher->compilePattern($rule['expanded_pattern']);
         
-        //print_r($subjects); echo $pattern . "\n";
+        //echo "\n\nrule: {$rule['message']}\n";echo "delimiter: $delimiter\n";echo $delimiter . $value . $delimiter;echo "\n".str_repeat("=", 60) ."\n";print_r($subjects); echo $pattern . "\n";
         
         $explodeAllMatched = true;
         $explodeAnyMatched = false;

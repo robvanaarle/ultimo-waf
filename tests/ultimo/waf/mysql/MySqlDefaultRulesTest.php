@@ -15,8 +15,8 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
     }
   } 
   
-  public function getUrlencodedQueriesFileIterator($filename) {
-    return new \ultimo\UrlencodedQueriesFileIterator(__DIR__ . '/fixtures/' . $filename);
+  public function getUrlencodedQueriesFileIterator($filename, $urlencoded=false) {
+    return new \ultimo\UrlencodedQueriesFileIterator(__DIR__ . '/fixtures/' . $filename, $urlencoded);
   }
   
   public function providerSmallSetPositives() {
@@ -28,11 +28,11 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
    */
   public function testSmallSetPositives($value) {
     $result = $this->tester->test($value);
-    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Rule tested negative for injection. Result: " . print_r($result, true));
+    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
   }
   
   public function providerSqlmapPositives() {
-    return $this->getUrlencodedQueriesFileIterator('sqlmap_positives.txt');
+    return $this->getUrlencodedQueriesFileIterator('sqlmap_positives.txt', true);
   }
   
   /**
@@ -52,7 +52,7 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
    */
   public function testAntiUltimoWafPositives($value) {
     $result = $this->tester->test($value);
-    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Rule tested negative for injection. Result: " . print_r($result, true));
+    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
   }
   
   public function providerModSecurityChallengePositives() {
@@ -65,7 +65,7 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
   public function testAntiModSecurityChallengePositives($value) {
     // https://www.trustwave.com/Resources/SpiderLabs-Blog/ModSecurity-SQL-Injection-Challenge--Lessons-Learned/
     $result = $this->tester->test($value);
-    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Rule tested negative for injection. Result: " . print_r($result, true));
+    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
   }
   
   public function providerAssortedPositives() {
@@ -77,7 +77,7 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
    */
   public function testAssortedPositives($value) {
     $result = $this->tester->test($value);
-    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Rule tested negative for injection. Result: " . print_r($result, true));
+    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
   }
   
   public function providerAssortedNegatives() {
@@ -93,9 +93,10 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
   }
   
   public function testManual() {
-    $value = "('2);(SELECT * FROM (SELECT(SLEEP(5)))sLoH)#')";
+    //$value = "('2);(SELECT * FROM (SELECT(SLEEP(5)))sLoH)#')";
+    $value = "1'UNION/*!0SELECT user,2,3,4,5,6,7,8,9/*!0from/*!0mysql.user/*-";
     $result = $this->tester->test($value);
-    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Rule tested negative for injection. Result: " . print_r($result, true));
+    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
   }
  
 }
