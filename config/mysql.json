@@ -1,7 +1,7 @@
 {
   "name": "mysql",
   "custom-token-types": {
-    "char": ["(", ")", ",", "."],
+    "char": [")", ",", "."],
     "data-manipulation-statement": ["select", "update", "delete", "insert", "drop", "replace", "case"],
     "clause": ["from", "where", "group", "order", "having"],
     "flow-control-statement": ["case", "if", "iterate", "leave", "loop", "repeat", "return", "while"],
@@ -10,9 +10,10 @@
     "logical-unary-operator": ["not", "!"],
     "other-operator": ["~", ":=", "&", "|", "^", "/", "<<", "-", "+", ">>", "*", "like", "regexp", "not_regexp", "rlike", "sounds_like"],
     "comparison-operator": ["<=>", ">=", ">", "<=", "<", "%", "!=", "<>", "="],
-    "column-modifier": ["binary"],
+    "column-modifier": ["binary", "boolean"],
     "value": ["true", "false", "null"],
     "char-semicolon": [";"],
+    "char-parenthesis-left": ["("],
     "operator-union": ["union"]
   },
   "aliases": {

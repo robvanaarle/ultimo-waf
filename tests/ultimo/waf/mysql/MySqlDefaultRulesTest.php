@@ -94,7 +94,7 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
   
   public function testManual() {
     //$value = "('2);(SELECT * FROM (SELECT(SLEEP(5)))sLoH)#')";
-    $value = "1'UNION/*!0SELECT user,2,3,4,5,6,7,8,9/*!0from/*!0mysql.user/*-";
+    $value = "2) ORDER BY 1--  2) UNION ALL SELECT NULL-- '";
     $result = $this->tester->test($value);
     $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
   }
