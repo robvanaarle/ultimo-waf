@@ -91,6 +91,22 @@ class MySqlTokenMatcherTest extends \PHPUnit_Framework_TestCase {
     ));
   }
   
+  public function testMatcherMatchesUnterminatedConditionalCommentContentInExplodeMode() {
+    $this->assertTrue($this->matcher->match(
+      '/^%identifier% %conditional-comment-start% %identifier%$/',
+      $this->lexer->run('a/*!0b'),
+      true
+    ));
+  }
+  
+  public function testMatcherIgnoresUnterminatedConditionalCommentContentInExplodeMode() {
+    $this->assertTrue($this->matcher->match(
+      '/^%identifier% %conditional-comment-start%$/',
+      $this->lexer->run('a/*!0b'),
+      true
+    ));
+  }
+  
   public function testMatcherMatchesNestedConditionalCommentAsAWhole() {
     // nested comments are ended with one ending comment
     $this->assertFalse($this->matcher->match(

@@ -22,7 +22,7 @@ class MySqlTokenMatcher {
         }
       } elseif ($token['type'] == 'executed-comment-start') {
         $inComment = true;
-      } elseif ($token['type'] == 'comment-end') {
+      } elseif ($token['type'] == 'comment-end' || ($index+1 >= $tokenCount)) {
         if ($conditionalCommentStartIndex !== null) {
           // found the end of a conditional comment
           
@@ -30,13 +30,26 @@ class MySqlTokenMatcher {
           // append conditional-comment-start, as this acts as whitespace
           $beforeAndStartCommentSubject = $this->tokensToSubject($tokens, $offset, $conditionalCommentStartIndex-$offset+1);
           
-          // contents of conditional comment may or may not be executed, these are the two paths
-          $commentContentSubject = $this->tokensToSubject($tokens, $conditionalCommentStartIndex+1, $index-$conditionalCommentStartIndex-1);
           
-          $commentEndSubject = $this->tokensToSubject($tokens, $index, 1);
+          // check if this is the last token
+          if ($index+1 < $tokenCount) {
+            $commentEndSubject = $this->tokensToSubject($tokens, $index, 1);
+            // call this function recursively, and prepend the two paths to all paths from the recursive call
+            $recursivePaths = $this->explodeConditionalCommentPaths($tokens, $index+1);
+            
+            // contents of conditional comment may or may not be executed, these are the two paths
+            $commentContentSubject = $this->tokensToSubject($tokens, $conditionalCommentStartIndex+1, $index-$conditionalCommentStartIndex-1);
+            
+          } else {
+            // this is the end of the value, no comment-end or recursive paths are present
+            $commentEndSubject = '';
+            $recursivePaths = array('');
+            
+            // contents of conditional comment may or may not be executed, these are the two paths
+            $commentContentSubject = $this->tokensToSubject($tokens, $conditionalCommentStartIndex+1, $index-$conditionalCommentStartIndex);
+          }
           
-          // call this function recursively, and prepend the two paths to all paths from the recursive call
-          $recursivePaths = $this->explodeConditionalCommentPaths($tokens, $index+1);
+          
           foreach ($recursivePaths as $recursivePath) {
             // create a path without comment content
             $tokenPaths[] = $beforeAndStartCommentSubject . $commentEndSubject . $recursivePath;

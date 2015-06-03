@@ -12,7 +12,8 @@
     "comparison-operator": ["<=>", ">=", ">", "<=", "<", "%", "!=", "<>", "="],
     "column-modifier": ["binary"],
     "value": ["true", "false", "null"],
-    "char-semicolon": [";"]
+    "char-semicolon": [";"],
+    "operator-union": ["union"]
   },
   "aliases": {
     "%_%": "%comment%|%executed-comment-start%|%conditional-comment-start%|%comment-end%|%whitespace%",
@@ -38,6 +39,13 @@
     {
       "message": "Second query after closing current query",
       "pattern": "/%operand% (%_%|%char-parenthesis-right%)* %char-semicolon% %_% %data-manipulation-statement% /",
+      "explode": "match-any",
+      "quoted": "match-any",
+      "score": 4
+    },
+    {
+      "message": "Union after closing current query",
+      "pattern": "/%operand% (%_%|%char-parenthesis-right%)* %operator-union% /",
       "explode": "match-any",
       "quoted": "match-any",
       "score": 4
