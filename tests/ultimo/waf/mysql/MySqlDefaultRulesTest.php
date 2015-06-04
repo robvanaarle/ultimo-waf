@@ -31,18 +31,6 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
     $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
   }
   
-  public function providerSqlmapPositives() {
-    return $this->getUrlencodedQueriesFileIterator('sqlmap_positives.txt', true);
-  }
-  
-  /**
-   * @dataProvider providerSqlmapPositives
-   */
- // public function testSqlmapPositives($value) {
-  //  $result = $this->tester->test($value);
-  //  $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score']);
-  //}
-  
   public function providerAntiUltimoWafPositives() {
     return $this->getUrlencodedQueriesFileIterator('anti-ultimo-waf_positives.txt');
   }
@@ -92,9 +80,24 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
     $this->assertLessThan($this->thresholdScore, $result['score'], "Rule tested positive for normal input. Result: " . print_r($result, true));
   }
   
+  public function providerSqlmapPositives() {
+    return $this->getUrlencodedQueriesFileIterator('sqlmap_positives.txt', true);
+  }
+  
+  /**
+   * @dataProvider providerSqlmapPositives
+   */
+  public function testSqlmapPositives($value) {
+    $result = $this->tester->test($value);
+    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
+  }
+  
+  /**
+   * 
+   */
   public function testManual() {
     //$value = "('2);(SELECT * FROM (SELECT(SLEEP(5)))sLoH)#')";
-    $value = "2) ORDER BY 1--  2) UNION ALL SELECT NULL-- '";
+    $value = "2' IN BOOLEAN MODE) UNION ALL SELECT NULL#'";
     $result = $this->tester->test($value);
     $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
   }

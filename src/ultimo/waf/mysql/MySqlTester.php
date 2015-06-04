@@ -75,6 +75,7 @@ class MySqlTester {
       
       foreach ($delimiters as $delimiter) {
         // TODO: optimize, encapsulating in delimiters is of no use if the value does not contiain that delimier
+        // TODO: optimize, run lexer only once for each delimiter before iteration over rules
         $tokens = $this->lexer->run($delimiter . $value . $delimiter);
         
         // as string delimiters are placed, it's possible that the value becomes one string, which is of no interest to the rule
@@ -82,6 +83,7 @@ class MySqlTester {
           continue;
         }
         
+        // TODO: optimize, compile before iteration over rules
         $subjects = $matcher->compileSubject($tokens, $explode != "no");
         $pattern = $matcher->compilePattern($rule['expanded_pattern']);
         
