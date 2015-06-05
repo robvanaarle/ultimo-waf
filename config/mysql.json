@@ -3,7 +3,7 @@
   "custom-token-types": {
     "char": [",", "."],
     "data-manipulation-statement-select": ["select"],
-    "data-manipulation-statement-other": ["update", "delete", "insert", "drop", "replace", "case", "alter", "create"],
+    "data-manipulation-statement-other": ["update", "delete", "insert", "drop", "replace", "case", "alter", "create", "rename", "truncate", "call", "handler", "load", "do", "show", "set"],
     "clause": ["from", "where", "group", "order", "having", "by", "limit"],
     "flow-control-statement": ["case", "if", "iterate", "leave", "loop", "repeat", "return", "while"],
     "function": ["concat", "concat_ws", "ascii", "hex", "unhex", "sleep", "md5", "benchmark", "substring", "mid", "substr"],
@@ -13,7 +13,7 @@
     "other-unary-and-binary-operator": ["~", "-", "+"],
     "other-unary-operator": ["binary"],
     "other-binary-operator": [":=", "%", "&", "|", "^", "/", "<<", ">>", "*", "like", "regexp", "not_regexp", "rlike", "sounds", "case", "div", "mod", "between", "exists", "interval"],
-    "column-modifier": ["in", "boolean", "mode"],
+    "search-modifier": ["in", "boolean", "mode", "natural", "language", "with", "query", "expansion"],
     "value": ["true", "false", "null", "unknown"],
     "char-semicolon": [";"],
     "char-parenthesis-left": ["("],
@@ -29,7 +29,7 @@
     "%char-parenthesis%": "%char-parenthesis-right%|%char-parenthesis-left%",
     "%data-manipulation-statement%": "%data-manipulation-statement-select%|%data-manipulation-statement-other%",
     "%before-operand%": "(%_%|%char-parenthesis-left%|%unary-operator%|%data-manipulation-statement-select%)*",
-    "%after-operand%": "(%_%|%char-parenthesis-right%|%column-modifier%)*"
+    "%after-operand%": "(%_%|%char-parenthesis-right%|%search-modifier%)*"
   },
   "threshold-score": 1,
   "rules": [

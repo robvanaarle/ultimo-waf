@@ -3,7 +3,8 @@
 1'; SELECT BINARY column ascolumnname FROM table -- /* Attempt to get 3 identifier bonus => added BINARY as modifier */
 1' /* Unterminated comment attack */ /*!0 or 1='1
 1' or (1)=(((1)) -- /* Attempt to hide operators within parenthesis */
-2' IN BOOLEAN MODE) UNION ALL SELECT NULL# /* Attempt to hide operand by using a column mode */
+2' IN BOOLEAN MODE) UNION ALL SELECT NULL# /* Attempt to hide operand by using a search modifier */
+2' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION) UNION ALL SELECT NULL# /* Attempt to hide operand by using a search modifier */
 1 OR 1 IN (1) -- /* Attempt to hide comparison by using IN */
   1 OR 1=1 -- /* Attempt to hide first value by starting with whitespace */
   1; DROP TABLE xxx -- /* Attempt to hide first value by starting with whitespace */
