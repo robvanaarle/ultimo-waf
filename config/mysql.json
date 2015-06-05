@@ -2,16 +2,19 @@
   "name": "mysql",
   "custom-token-types": {
     "char": [",", "."],
-    "data-manipulation-statement": ["select", "update", "delete", "insert", "drop", "replace", "case"],
-    "clause": ["from", "where", "group", "order", "having", "by", "against"],
+    "data-manipulation-statement-select": ["select"],
+    "data-manipulation-statement-other": ["update", "delete", "insert", "drop", "replace", "case", "alter", "create"],
+    "clause": ["from", "where", "group", "order", "having", "by", "limit"],
     "flow-control-statement": ["case", "if", "iterate", "leave", "loop", "repeat", "return", "while"],
     "function": ["concat", "concat_ws", "ascii", "hex", "unhex", "sleep", "md5", "benchmark", "substring", "mid", "substr"],
     "logical-binary-operator": ["and", "or", "xor", "||", "&&"],
     "logical-unary-operator": ["not", "!"],
-    "other-operator": ["~", ":=", "&", "|", "^", "/", "<<", "-", "+", ">>", "*", "like", "regexp", "not_regexp", "rlike", "sounds_like", "binary"],
-    "comparison-operator": ["<=>", ">=", ">", "<=", "<", "%", "!=", "<>", "="],
+    "comparison-operator": ["<=>", ">=", ">", "<=", "<", "!=", "<>", "="],
+    "other-unary-and-binary-operator": ["~", "-", "+"],
+    "other-unary-operator": ["binary"],
+    "other-binary-operator": [":=", "%", "&", "|", "^", "/", "<<", ">>", "*", "like", "regexp", "not_regexp", "rlike", "sounds", "case", "div", "mod", "between", "exists", "interval"],
     "column-modifier": ["in", "boolean", "mode"],
-    "value": ["true", "false", "null"],
+    "value": ["true", "false", "null", "unknown"],
     "char-semicolon": [";"],
     "char-parenthesis-left": ["("],
     "char-parenthesis-right": [")"],
@@ -20,35 +23,44 @@
   "aliases": {
     "%_%": "%comment%|%executed-comment-start%|%conditional-comment-start%|%comment-end%|%whitespace%",
     "%operand%": "%value%|%identifier%|%quoted_identifier%|%string%|%number%|%hexadecimal%|%bit-field%|%system-variable%|%user-defined-variable%",
-    "%operator%": "%function%|%logical-binary-operator%|%logical-unary-operator%|%other-operator%|%comparison-operator%|%clause%",
-    "%char-parenthesis%": "%char-parenthesis-right%|%char-parenthesis-left%"
+    "%unary-operator%": "%logical-unary-operator%|%other-unary-and-binary-operator%|%other-unary-operator%",
+    "%non-unary-operator%": "%logical-binary-operator%|%other-binary-operator%|%comparison-operator%|other-unary-and-binary-operator",
+    "%operator%": "%function%|%unary-operator%|%non-unary-operator%|%clause%",
+    "%char-parenthesis%": "%char-parenthesis-right%|%char-parenthesis-left%",
+    "%data-manipulation-statement%": "%data-manipulation-statement-select%|%data-manipulation-statement-other%",
+    "%before-operand%": "(%_%|%char-parenthesis-left%|%unary-operator%|%data-manipulation-statement-select%)*",
+    "%after-operand%": "(%_%|%char-parenthesis-right%|%column-modifier%)*"
   },
   "threshold-score": 1,
   "rules": [
     {
+      "id": 100,
       "message": "Three successive identifiers",
       "pattern": "/%identifier% %whitespace%* %identifier% %whitespace%* %identifier%/",
-      "score": -20,
       "explode": "match-all",
-      "quoted": "match-all"
+      "quoted": "match-all",
+      "score": -20
     },
     {
+      "id": 200,
       "message": "Operator followed by operand",
-      "pattern": "/%operator% (%_%|%char-parenthesis-left%|%column-modifier%)* %operand%/",
+      "pattern": "/%operator% %before-operand% %operand%/",
       "explode": "match-any",
       "quoted": "match-any",
       "score": 4
     },
     {
+      "id": 201,
       "message": "Closure of vurnable query followed by a new query",
-      "pattern": "/^%operand% (%_%|%char-parenthesis-right%|%column-modifier%)* %char-semicolon% (%_%|%char-parenthesis-left%)* %data-manipulation-statement% /",
+      "pattern": "/^%before-operand% %operand% %after-operand% %char-semicolon% (%_%|%char-parenthesis-left%)* %data-manipulation-statement%/",
       "explode": "match-any",
       "quoted": "match-any",
       "score": 4
     },
     {
-      "message": "Closure of vurnable variable followed by a union",
-      "pattern": "/^%operand% (%_%|%char-parenthesis-right%|%column-modifier%)* %operator-union% /",
+      "id": 202,
+      "message": "Closure of vurnable variable followed by a union or clause",
+      "pattern": "/^%before-operand% %operand% %after-operand% (%operator-union%|%clause%)/",
       "explode": "match-any",
       "quoted": "match-any",
       "score": 4
@@ -57,8 +69,10 @@
   ],
   "-debug-disabled-rules": [
     {
-      "message": "Closure of vurnable variable followed by operator and operand [TODO: operand may be preceeded by -, + , ~, !, not or binary, which must be checked if this rule will replace 'Operator followed by operand']",
-      "pattern": "/^%operand% (%_%|%char-parenthesis%|%column-modifier%)* %operator% (%_%|%char-parenthesis-left%)* %operand%/",
+      "id": 203,
+      "-comment": "This is more strict than 200",
+      "message": "Closure of vurnable variable followed by operator and operand",
+      "pattern": "/^%before-operand% %operand% %after-operand% %non-unary-operator% %before-operand% %operand%/",
       "explode": "match-any",
       "quoted": "match-any",
       "score": 4

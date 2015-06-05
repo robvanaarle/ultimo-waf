@@ -8,6 +8,8 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
   protected $thresholdScore;
   
   public function setUp() {
+    ini_set("memory_limit","456M");
+    
     if ($this->tester === null) {
       $config = json_decode(file_get_contents(__DIR__ . '/../../../../config/mysql.json'), true);
       $this->thresholdScore = $config['threshold-score'];
@@ -44,7 +46,7 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
   }
   
   public function providerModSecurityChallengePositives() {
-    return $this->getUrlencodedQueriesFileIterator('modsecurity-challenge_positives.txt');
+    return $this->getUrlencodedQueriesFileIterator('modsecurity-challenge_positives.txt', true);
   }
   
   /**
@@ -87,10 +89,11 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
   /**
    * @dataProvider providerSqlmapPositives
    */
-  public function testSqlmapPositives($value) {
-    $result = $this->tester->test($value);
-    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
-  }
+  //public function testSqlmapPositives($value) {
+    
+  //  $result = $this->tester->test($value);
+  //  $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
+  //}
   
   /**
    * 
@@ -100,6 +103,24 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
     $value = "2' IN BOOLEAN MODE) UNION ALL SELECT NULL#'";
     $result = $this->tester->test($value);
     $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
+  }
+
+  public function testPerformance() {
+    $start = microtime(true);
+
+    for ($i=0; $i<100; $i++) {
+      $value = "2' IN BOOLEAN MODE) UNION ALL SELECT NULL#'";
+      $result = $this->tester->test($value);
+    }
+
+    $end = microtime(true);
+
+    $time = $end - $start;
+    $avg = $time/100;
+    $time = round($time, 3);
+    $avg = round($avg, 3);
+    echo "Time: {$time}s, avg: {$avg}";
+    
   }
  
 }

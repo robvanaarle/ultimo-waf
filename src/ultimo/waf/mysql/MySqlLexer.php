@@ -15,7 +15,9 @@ class MySqlLexer {
   protected $value;
   protected $next;
   protected $choppedValue; // rename to remainingValue?
-  protected $customTypes = array();
+  protected $alphaNumericTokens;
+  protected $specialTokens;
+  protected $specialTokensPattern;
  
   // http://savage.net.au/SQL/sql-2003-2.bnf.html#delimited%20identifier
   
@@ -23,12 +25,39 @@ class MySqlLexer {
     $this->setCustomTypes($customTypes);
   }
   
-  public function setCustomTypes(array $customTypes) {
-    foreach ($customTypes as $name => $values) {
+  protected function setCustomTypes(array $customTypes) {
+    $this->alphaNumericTokens = array();
+    $this->specialTokens = array();
+    foreach ($customTypes as $type => $values) {
       foreach ($values as $value) {
-        $this->customTypes[$value] = $name;
+        if (preg_match('/^[a-z0-9_\$]+/', $value)) {
+          $this->alphaNumericTokens[$value] = $type;
+        } else {
+          $this->specialTokens[$value] = $type;
+        }
       }
     }
+
+    // Sort tokens by value. This is reversed later, so for example << is matched before <
+    ksort($this->specialTokens);
+    
+    // precompile pattern for special tokens
+
+    $quotedTokens = array();
+    foreach ($this->specialTokens as $value => $type) {
+      $quotedTokens[] = preg_quote($value, '/');
+    }
+      
+    // add comment token values, after reversal they have highest priority
+    $quotedTokens[] = '\/\*';
+    $quotedTokens[] = '\-\-($|[\s\x0b])';
+    $quotedTokens[] = '#';
+      
+      
+    // array was sorted from short to long tokens, matching should the the other way around. Comment tokens are in front now, as they are more important than other tokens
+    $quotedTokens = array_reverse($quotedTokens);
+      
+    $this->specialTokensPattern = '/^(' . implode('|', $quotedTokens) . ')/';
   }
   
   protected function consume($tokenValue, $type) {
@@ -77,9 +106,8 @@ class MySqlLexer {
     return false;
   }
 
-  protected function consumeString($delimiter="\"") {
-
-    $escapedDelimiter = preg_quote($delimiter, '/');
+  protected function consumeString() {
+    $escapedDelimiter = preg_quote($this->next, '/');
     // http://stackoverflow.com/questions/5695240/php-regex-to-ignore-escaped-quotes-within-quotes
     if ($this->match($escapedDelimiter . '[^'.$escapedDelimiter.'\\\\]*(?:\\\\.[^'.$escapedDelimiter.'\\\\]*)*' . $escapedDelimiter, 'string')) {
       return true;
@@ -108,18 +136,16 @@ class MySqlLexer {
     return false;
   }
  
+  protected function consumeCommentEnd() {
+    return $this->match('\*\/', 'comment-end');
+  }
+
   protected function consumeComment() {
+    return $this->match('(#.*?($|\n)|\-\-($|\h|\x0c|\x0d|\x0b).*?($|\n)|\-\-\n)', 'comment', 1);
+  }
+
+  protected function consumeExecutableComment() {
     //https://dev.mysql.com/doc/refman/5.7/en/comments.html
-    
-    if ($this->next == '*') {
-      if ($this->match('\*\/', 'comment-end')) {
-        return true;
-      }
-    } else if ($this->next == '#' || $this->next == '-') {
-      if ($this->match('(#.*?($|\n)|\-\-($|\h|\x0c|\x0d|\x0b).*?($|\n)|\-\-\n)', 'comment', 1)) {
-        return true;
-      }
-    } 
  
     // /*!(\d+)? ... */
     if (preg_match("/^\/\*\!([\d]+)?/", $this->choppedValue, $matches)) {
@@ -171,87 +197,26 @@ class MySqlLexer {
     }
   }
   
-  // TODO: make this much more efficient by pre sorting the custom types
   public function consumeCustomType() {
     $word = null;
-      
-    $alphaNumericTokens = array();
-    $specialTokens = array();
-    foreach ($this->customTypes as $token => $type) {
-      if (preg_match('/^[a-z0-9_\$]+/', $token)) {
-        $alphaNumericTokens[$token] = $type;
-      } else {
-        $specialTokens[$token] = $type;
+          
+    if (preg_match($this->specialTokensPattern, $this->choppedValue, $matches)) {
+      $token = $matches[0];
+      //echo "Match: {$token}\n";
+      if (!isset($this->specialTokens[$token])) {
+        // comment token
+        return false;
       }
-    }
-
-    ksort($specialTokens);
-    $specialTokens = $specialTokens;
-    
-    // special tokens
-    if (count($specialTokens) > 0) {
-      $quotedTokens = array();
-      foreach ($specialTokens as $token => $type) {
-        $quotedTokens[] = preg_quote($token, '/');
-      }
-      
-      // add comments tokens
-      $quotedTokens[] = '\/\*';
-      $quotedTokens[] = '\-\-($|[\s\x0b])';
-      $quotedTokens[] = '#';
-      
-      
-      // array was sorted from short to long tokens, matching should the the other way around. Comment tokens are in front now, as they are more important than other tokens
-      $quotedTokens = array_reverse($quotedTokens);
-      
-      $pattern = '/^(' . implode('|', $quotedTokens) . ')/';
-      
-      //echo $pattern . "\n";
-      //echo $this->choppedValue . "\n";
-      
-      if (preg_match($pattern, $this->choppedValue, $matches)) {
-        $token = $matches[0];
-        //echo "Match: {$token}\n";
-        if (!isset($specialTokens[$token])) {
-          // comment token
-          return false;
-        }
-        $this->consume($token, $specialTokens[$token]);
-        return true;
-      }
+      $this->consume($token, $this->specialTokens[$token]);
+      return true;
     }
     
     
     // alpha numeric tokens
     if (preg_match("/^[a-z0-9_\$]*[a-z_\$]+[a-z0-9_\$]*/", $this->choppedValue, $matches)) {
       $token = $matches[0];
-      if (isset($alphaNumericTokens[$token])) {
-        $this->consume($token, $alphaNumericTokens[$token]);
-        return true;
-      }
-    }
-    
-    return false;
-  }
-  
-  public function consumeCustomTypeOld() {
-    $word = null;
-    
-    // special chars only, for values like <, > and <=>
-    if (preg_match("/^([^a-z0-9\_\$\s\x0b\'\"]+?)"
-                 . "($|\/\*|\-\-($|[\s\x0b])|\#|[a-z0-9\_\$\s\x0b\"\'\`])/" // must be followed by end, comment or non operator character
-                 , $this->choppedValue, $matches)) {
-      $word = $matches[1];
-    }
-    
-    // alpha numeric tokens
-    if ($word === null && preg_match("/^[a-z0-9_\$]*[a-z_\$]+[a-z0-9_\$]*/", $this->choppedValue, $matches)) {
-      $word = $matches[0];
-    }
-    
-    if ($word !== null) {
-      if (isset($this->customTypes[$word])) {
-        $this->consume($word, $this->customTypes[$word]);
+      if (isset($this->alphaNumericTokens[$token])) {
+        $this->consume($token, $this->alphaNumericTokens[$token]);
         return true;
       }
     }
@@ -264,13 +229,16 @@ class MySqlLexer {
       echo $str;
     }
   }
-  
+
   public function run($value) {
     $this->tokens = array();
     $this->value = strtolower($value);
     $this->next = substr($this->value, 0, 1);
     $this->choppedValue = $this->value;
   
+    $x0b = urldecode("%0b");
+    $x0c = urldecode("%0c");
+
     $i = 0;
     while(strlen($this->choppedValue) > 0) {
       $i++;
@@ -284,63 +252,84 @@ class MySqlLexer {
      
       $this->write("next: '{$this->next}'\n");
     
+
       if ($this->consumeCustomType()) {
         continue;
       }
       
-      if (in_array($this->next, array('0', 'x'))) {
-        if ($this->consumeHexadecimal()) {
-          continue;
-        }
-      } elseif (in_array($this->next, array('b'))) {
-        if ($this->consumeBitField()) {
-          continue;
-        }
+      switch($this->next) {
+        case '0':
+          if ($this->consumeHexadecimal() || $this->consumeNumber()) {
+            continue 2;
+          }
+          break;
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+          if ($this->consumeNumber()) {
+            continue 2;
+          }
+          break;
+        case 'b':
+          if ($this->consumeBitField()) {
+            continue 2;
+          }
+          break;
+        case 'x':
+          if ($this->consumeHexadecimal()) {
+            continue 2;
+          }
+          break;
+        case ' ':
+        case "\n":
+        case "\t":
+        case "\r":
+        case $x0b:
+        case $x0c:
+          if ($this->consumeWhitespace()) {
+            continue 2;
+          }
+          break;
+        case '"':
+        case "'":
+          if ($this->consumeString()) {
+            continue 2;
+          }
+          break;
+        case '`':
+          if ($this->consumeQuotedIdentifier()) {
+            continue 2;
+          }
+          break;
+        case '@':
+          if ($this->consumeVariable()) {
+            continue 2;
+          }
+          break;
+        case '#':
+        case '-':
+          if ($this->consumeComment()) {
+            continue 2;
+          }
+          break;
+        case '/':
+          if ($this->consumeExecutableComment()) {
+            continue 2;
+          }
+          break;
+        case '*':
+          if ($this->consumeCommentEnd()) {
+            continue 2;
+          }
+          break;
       }
      
-      // TODO: test if switch is faster
-      if (in_array($this->next, array('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '.'))) {
-        if ($this->consumeNumber()) {
-          continue;
-        }
-      } elseif (in_array($this->next, array(' ', "\n", "\t", "\r", urldecode("%0b"), urldecode("%0c")))) {
-        if ($this->consumeWhitespace()) {
-          continue;
-        }
-      } elseif (in_array($this->next, array('"', '\''))) {
-        if ($this->consumeString($this->next)) {
-          continue;
-        }
-      } elseif ($this->next == '`') {
-        $this->consumeQuotedIdentifier();
-        continue;
-      /*} elseif ($this->next == '(') {
-        $this->consume('(', 'char-parenthesis-left');
-        continue;
-      } elseif ($this->next == ')') {
-        $this->consume(')', 'char-parenthesis-right');
-        continue;
-      } elseif ($this->next == ',') {
-        $this->consume(',', 'char-comma');
-        continue;
-      } elseif ($this->next == ';') {
-        $this->consume(';', 'char-semicolon');
-        continue;
-      } elseif ($this->next == '.') {
-        $this->consume('.', 'char-period');
-        continue;*/
-      } elseif ($this->next == '@') {
-        if ($this->consumeVariable()) {
-          continue;
-        }
-      }
-   
-      if (in_array($this->next, array('#', '-', '/', '*'))) {
-        if ($this->consumeComment()) {
-          continue;
-        }
-      }
-
       if ($this->consumeIdentifier()) {
         continue;
       }

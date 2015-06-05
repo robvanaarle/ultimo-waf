@@ -1,8 +1,22 @@
 1' or 1=1 --  /*!70000 More than three successive identifiers in this not executed conditional comment as an attempt to get bonus points */
 1' or ++--1=++--1 -- /* Attempt to bypass penalty rules that match on comparison of numbers  */
-+ --++1 or 1=1 -- /* Attempt to bypass penalty rules that check if a variable starts with a number */
 1'; SELECT BINARY column ascolumnname FROM table -- /* Attempt to get 3 identifier bonus => added BINARY as modifier */
 1' /* Unterminated comment attack */ /*!0 or 1='1
 1' or (1)=(((1)) -- /* Attempt to hide operators within parenthesis */
 2' IN BOOLEAN MODE) UNION ALL SELECT NULL# /* Attempt to hide operand by using a column mode */
 1 OR 1 IN (1) -- /* Attempt to hide comparison by using IN */
+  1 OR 1=1 -- /* Attempt to hide first value by starting with whitespace */
+  1; DROP TABLE xxx -- /* Attempt to hide first value by starting with whitespace */
+  1 UNION ALL SELECT NULL -- /* Attempt to hide first value by starting with whitespace */
++--1 OR 1=1 -- /* Attempt to hide first value by starting with unary operator */
++--1; DROP TABLE xxx -- /* Attempt to hide first value by starting with unary operator */
++--1 UNION ALL SELECT NULL -- /* Attempt to hide first value by starting with unary operator */
+(SELECT 1) OR 1=1 -- /* Attempt to hide first value within a select statement */
+(SELECT 1); DROP TABLE xxx -- /* Attempt to hide first value within a select statement */
+(SELECT 1) UNION ALL SELECT NULL -- /* Attempt to hide first value within a select statement */
+1 OR (SELECT 1)=(SELECT 1) -- /* Attempt to hide comparison values within select statements */
+(1) OR 1=1 -- /* Attempt to hide first values within parenthesis */
+(1); DROP TABLE xxx -- /* Attempt to hide first values within parenthesis */
+(1)  UNION ALL SELECT NULL -- /* Attempt to hide first values within parenthesis */
+1 LIMIT 0, 1; DROP TABLE xxx -- /* Attempt to bypass first value check with another clause */
+1 LIMIT 0, 1 UNION ALL SELECT NULL /* Attempt to bypass first value check with another clause */

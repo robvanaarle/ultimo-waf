@@ -111,10 +111,6 @@ class MySqlTokenMatcher {
     return preg_match($compiledPattern, $compiledSubject);
   }
   
-  //TODO: 
-  // - implicit whitespace (default=false)
-  // - explode cc paths (default=false)
-  // - ignore comments (default=true)
   public function match($tokenPattern, array $tokens, $explodeCCPaths = false) {
     
     $subjects = $this->compileSubject($tokens, $explodeCCPaths);
