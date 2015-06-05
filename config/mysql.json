@@ -1,7 +1,7 @@
 {
   "name": "mysql",
   "custom-token-types": {
-    "char": [",", "."],
+    "other-char": [",", "."],
     "data-manipulation-statement-select": ["select"],
     "data-manipulation-statement-other": ["update", "delete", "insert", "drop", "replace", "case", "alter", "create", "rename", "truncate", "call", "handler", "load", "do", "show", "set"],
     "clause": ["from", "where", "group", "order", "having", "by", "limit"],
@@ -51,7 +51,7 @@
     },
     {
       "id": 201,
-      "message": "Closure of vurnable query followed by a new query",
+      "message": "Termination of vurnable operand and query followed by a new query",
       "pattern": "/^%before-operand% %operand% %after-operand% %char-semicolon% (%_%|%char-parenthesis-left%)* %data-manipulation-statement%/",
       "explode": "match-any",
       "quoted": "match-any",
@@ -59,19 +59,18 @@
     },
     {
       "id": 202,
-      "message": "Closure of vurnable variable followed by a union or clause",
+      "message": "Termination of vurnable operand followed by a union or clause",
       "pattern": "/^%before-operand% %operand% %after-operand% (%operator-union%|%clause%)/",
       "explode": "match-any",
       "quoted": "match-any",
       "score": 4
     }
-    
   ],
   "-debug-disabled-rules": [
     {
       "id": 203,
       "-comment": "This is more strict than 200",
-      "message": "Closure of vurnable variable followed by operator and operand",
+      "message": "Termination of vurnable operand followed by operator and operand",
       "pattern": "/^%before-operand% %operand% %after-operand% %non-unary-operator% %before-operand% %operand%/",
       "explode": "match-any",
       "quoted": "match-any",
