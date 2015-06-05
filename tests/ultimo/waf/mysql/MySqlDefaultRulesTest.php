@@ -8,8 +8,6 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
   protected $thresholdScore;
   
   public function setUp() {
-    ini_set("memory_limit","456M");
-    
     if ($this->tester === null) {
       $config = json_decode(file_get_contents(__DIR__ . '/../../../../config/mysql.json'), true);
       $this->thresholdScore = $config['threshold-score'];
@@ -89,23 +87,13 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
   /**
    * @dataProvider providerSqlmapPositives
    */
-  //public function testSqlmapPositives($value) {
-    
-  //  $result = $this->tester->test($value);
-  //  $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
-  //}
-  
-  /**
-   * 
-   */
-  public function testManual() {
-    //$value = "('2);(SELECT * FROM (SELECT(SLEEP(5)))sLoH)#')";
-    $value = "2' IN BOOLEAN MODE) UNION ALL SELECT NULL#'";
+  /*public function testSqlmapPositives($value) {
+    ini_set("memory_limit","768M");
     $result = $this->tester->test($value);
     $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
-  }
-
-  public function testPerformance() {
+  }/*
+  
+  /*public function testPerformance() {
     $start = microtime(true);
 
     for ($i=0; $i<100; $i++) {
@@ -121,6 +109,16 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
     $avg = round($avg, 3);
     echo "Time: {$time}s, avg: {$avg}";
     
+  }*/
+
+  /**
+   * 
+   */
+  public function testManual() {
+    //$value = "('2);(SELECT * FROM (SELECT(SLEEP(5)))sLoH)#')";
+    $value = "2' IN BOOLEAN MODE) UNION ALL SELECT NULL#'";
+    $result = $this->tester->test($value);
+    $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
   }
  
 }

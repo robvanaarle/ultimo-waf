@@ -51,22 +51,24 @@ class MySqlTester {
     }
   }
   
-  // TODO: optimize for performace by precompiling the subject and pattern
   // TODO: accept multiple variablenames with values, assign scores to variables
   public function test($value) {
     $matcher = new MySqlTokenMatcher();
   
     $result = array('score' => 0, 'rules' => array());
     
-    foreach ($this->rules as $rule) {
+    $tokensCache = array();
+    $compiledPatternCache = array();
+    $compiledSubjectsCache = array('exploded' => array(), 'non-exploded' => array());
+
+    foreach ($this->rules as $ruleIndex => $rule) {
       $quoted = isset($rule['quoted']) ? $rule['quoted'] : "no";
       
       $delimiters = array('');
       if ($quoted != "no") {
         $delimiters = array('', '"', "'");
       }
-      
-      
+  
       $explode = isset($rule['explode']) ? $rule['explode'] : "no";
       $negate = isset($rule['negate']) ? $rule['negate'] : false;
       
@@ -75,17 +77,30 @@ class MySqlTester {
       
       foreach ($delimiters as $delimiter) {
         // TODO: optimize, encapsulating in delimiters is of no use if the value does not contiain that delimier
-        // TODO: optimize, run lexer only once for each delimiter before iteration over rules
-        $tokens = $this->lexer->run($delimiter . $value . $delimiter);
+
+        if (!isset($tokensCache[$delimiter])) {
+          $tokensCache[$delimiter] = $this->lexer->run($delimiter . $value . $delimiter);
+        }
+
+        $tokens = $tokensCache[$delimiter];
         
         // as string delimiters are placed, it's possible that the value becomes one string, which is of no interest to the rule
         if ($delimiter != '' && count($tokens) == 1 && $tokens[0]['type'] == 'string') {
           continue;
         }
         
-        // TODO: optimize, compile before iteration over rules
-        $subjects = $matcher->compileSubject($tokens, $explode != "no");
-        $pattern = $matcher->compilePattern($rule['expanded_pattern']);
+        // get subjects
+        $exploded = $explode == "no" ? "exploded" : "non-exploded";
+        if (!isset($compiledSubjectsCache[$exploded][$delimiter])) {
+          $compiledSubjectsCache[$exploded][$delimiter] = $matcher->compileSubject($tokens, $explode != "no");
+        }
+        $subjects = $compiledSubjectsCache[$exploded][$delimiter];
+
+        // get pattern
+        if (!isset($compiledPatternCache[$ruleIndex])) {
+          $compiledPatternCache[$ruleIndex] = $matcher->compilePattern($rule['expanded_pattern']);
+        }
+        $pattern = $compiledPatternCache[$ruleIndex];
         
         //echo "\n\nrule: {$rule['message']}\n";echo "delimiter: $delimiter\n";echo $delimiter . $value . $delimiter;echo "\n".str_repeat("=", 60) ."\n";print_r($subjects); echo $pattern . "\n";
         
