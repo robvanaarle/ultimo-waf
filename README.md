@@ -16,3 +16,15 @@ Unlike other WAFs, Ultimo-WAF runs directly after the input parameters are colle
 
 ## Usage
 TBD
+
+## Todo
+* FInd and test against a large set of mysql negatives
+* Create fixtures of more mysql vulnerability tools like sqlmap and test against them: https://www.owasp.org/index.php/Testing_for_SQL_Injection_%28OTG-INPVAL-005%29#Tools
+* Add vulnerability tool version and options/settings to fixture file, so fixtures can be regenerated
+* Refactor code, much of the Lexer, TokenMatcher and Tester can be reused for other type of attacks
+* Add phpdoc
+* Create generic extensible WAF core
+* Create more extensions (besides mysql) for the WAF core for vulnerabilities in OWASP top 10
+* Create plugins/extensions for frameworks so they can make use of ultimo-waf easily
+* Find a better name for the Tester
+* It this a WAF, IDS, IPS or something else? 

@@ -91,8 +91,11 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
     ini_set("memory_limit","768M");
     $result = $this->tester->test($value);
     $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
-  }/*
+  }*/
   
+  /**
+   * 
+   */
   /*public function testPerformance() {
     $start = microtime(true);
 

@@ -12,7 +12,8 @@ class MySqlTester {
   protected $lexer;
   protected $aliases = array();
   protected $rules;
-  
+  protected $compiledPatternCache = array();
+
   public function __construct(array $config) {
     $customTokenTypes = array();
     if (isset($config['custom-token-types'])) {
@@ -52,13 +53,15 @@ class MySqlTester {
   }
   
   // TODO: accept multiple variablenames with values, assign scores to variables
+  //       -> as patterns are cached now within an instance of this class, this can be done later
   public function test($value) {
     $matcher = new MySqlTokenMatcher();
   
     $result = array('score' => 0, 'rules' => array());
     
     $tokensCache = array();
-    $compiledPatternCache = array();
+    
+    $this->compiledPatternCache = array();
     $compiledSubjectsCache = array('exploded' => array(), 'non-exploded' => array());
 
     foreach ($this->rules as $ruleIndex => $rule) {
@@ -97,10 +100,10 @@ class MySqlTester {
         $subjects = $compiledSubjectsCache[$exploded][$delimiter];
 
         // get pattern
-        if (!isset($compiledPatternCache[$ruleIndex])) {
-          $compiledPatternCache[$ruleIndex] = $matcher->compilePattern($rule['expanded_pattern']);
+        if (!isset($this->compiledPatternCache[$ruleIndex])) {
+          $this->compiledPatternCache[$ruleIndex] = $matcher->compilePattern($rule['expanded_pattern']);
         }
-        $pattern = $compiledPatternCache[$ruleIndex];
+        $pattern = $this->compiledPatternCache[$ruleIndex];
         
         //echo "\n\nrule: {$rule['message']}\n";echo "delimiter: $delimiter\n";echo $delimiter . $value . $delimiter;echo "\n".str_repeat("=", 60) ."\n";print_r($subjects); echo $pattern . "\n";
         
