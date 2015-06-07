@@ -79,12 +79,26 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
     $result = $this->tester->test($value);
     $this->assertLessThan($this->thresholdScore, $result['score'], "Rule tested positive for normal input. Result: " . print_r($result, true));
   }
+
+
+  public function providerEnglishTextNegatives() {
+    return $this->getUrlencodedQueriesFileIterator('english-text_negatives.txt');
+  }
   
+  /**
+   * @dataProvider providerEnglishTextNegatives
+   */
+  public function testEnglishTextNegatives($value) {
+    $result = $this->tester->test($value);
+    $this->assertLessThan($this->thresholdScore, $result['score'], "Input tested positive for injection. Result: " . print_r($result, true));
+  }
+
   public function providerSqlmapPositives() {
     return $this->getUrlencodedQueriesFileIterator('sqlmap_positives.txt', true);
   }
   
   /**
+   * Warning: many tests!
    * @dataProvider providerSqlmapPositives
    */
   /*public function testSqlmapPositives($value) {
@@ -93,6 +107,8 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
     $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
   }*/
   
+
+
   /**
    * 
    */
@@ -123,5 +139,8 @@ class MySqlDefaultRulesTest extends \PHPUnit_Framework_TestCase {
     $result = $this->tester->test($value);
     $this->assertGreaterThanOrEqual($this->thresholdScore, $result['score'], "Input tested negative for injection. Result: " . print_r($result, true));
   }
+
+  
+  
  
 }
